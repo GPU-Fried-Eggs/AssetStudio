@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AssetStudioGUI": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

@@ -1,0 +1,83 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ApplicationIcon>Resources\as.ico</ApplicationIcon>
+		<TargetFramework>net6.0-windows</TargetFramework>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\AssetStudio.Utility\AssetStudio.Utility.csproj" />
+		<ProjectReference Include="..\AssetStudio\AssetStudio.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+		<Compile Update="Properties\Settings.Designer.cs">
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Settings.settings</DependentUpon>
+			<DesignTimeSharedInput>True</DesignTimeSharedInput>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Update="Properties\Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+		<Compile Update="Properties\Resources.Designer.cs">
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+			<DesignTime>True</DesignTime>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ContentWithTargetPath Include="Libraries\x86\fmod.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>x86\fmod.dll</TargetPath>
+		</ContentWithTargetPath>
+		<ContentWithTargetPath Include="Libraries\x64\fmod.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>x64\fmod.dll</TargetPath>
+		</ContentWithTargetPath>
+	</ItemGroup>
+
+	<ItemGroup Condition=" '$(TargetFramework)' != 'net472' ">
+		<PackageReference Include="OpenTK" Version="4.6.7" />
+		<Reference Include="OpenTK.WinForms">
+			<HintPath>Libraries\OpenTK.WinForms.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
+		<PackageReference Include="OpenTK" Version="3.1.0" />
+		<PackageReference Include="OpenTK.GLControl" Version="3.1.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+	</ItemGroup>
+
+	<Target Name="CopyExtraFiles" AfterTargets="AfterBuild">
+		<Copy SourceFiles="$(SolutionDir)AssetStudio.FBXNative\bin\Win32\$(Configuration)\AssetStudio.FBXNative.dll" DestinationFolder="$(TargetDir)x86" ContinueOnError="true" />
+		<Copy SourceFiles="$(SolutionDir)AssetStudio.FBXNative\bin\x64\$(Configuration)\AssetStudio.FBXNative.dll" DestinationFolder="$(TargetDir)x64" ContinueOnError="true" />
+		<Copy SourceFiles="$(SolutionDir)AssetStudio.TextureNative\bin\Win32\$(Configuration)\AssetStudio.TextureNative.dll" DestinationFolder="$(TargetDir)x86" ContinueOnError="true" />
+		<Copy SourceFiles="$(SolutionDir)AssetStudio.TextureNative\bin\x64\$(Configuration)\AssetStudio.TextureNative.dll" DestinationFolder="$(TargetDir)x64" ContinueOnError="true" />
+		<Copy SourceFiles="$(SolutionDir)AssetStudio.LzhamNative\bin\Win32\$(Configuration)\AssetStudio.LzhamNative.dll" DestinationFolder="$(TargetDir)x86" ContinueOnError="true" />
+		<Copy SourceFiles="$(SolutionDir)AssetStudio.LzhamNative\bin\x64\$(Configuration)\AssetStudio.LzhamNative.dll" DestinationFolder="$(TargetDir)x64" ContinueOnError="true" />
+	</Target>
+
+	<Target Name="PublishExtraFiles" AfterTargets="Publish">
+		<Copy SourceFiles="$(TargetDir)x86\AssetStudio.FBXNative.dll" DestinationFolder="$(PublishDir)x86" ContinueOnError="true" />
+		<Copy SourceFiles="$(TargetDir)x64\AssetStudio.FBXNative.dll" DestinationFolder="$(PublishDir)x64" ContinueOnError="true" />
+		<Copy SourceFiles="$(TargetDir)x86\AssetStudio.TextureNative.dll" DestinationFolder="$(PublishDir)x86" ContinueOnError="true" />
+		<Copy SourceFiles="$(TargetDir)x64\AssetStudio.TextureNative.dll" DestinationFolder="$(PublishDir)x64" ContinueOnError="true" />
+		<Copy SourceFiles="$(TargetDir)x86\AssetStudio.LzhamNative.dll" DestinationFolder="$(PublishDir)x86" ContinueOnError="true" />
+		<Copy SourceFiles="$(TargetDir)x64\AssetStudio.LzhamNative.dll" DestinationFolder="$(PublishDir)x64" ContinueOnError="true" />
+	</Target>
+</Project>

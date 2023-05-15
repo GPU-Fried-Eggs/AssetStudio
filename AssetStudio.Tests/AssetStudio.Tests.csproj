@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0"/>
+        <PackageReference Include="xunit" Version="2.4.2"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="coverlet.collector" Version="3.2.0">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\AssetStudio.LzhamWrapper\AssetStudio.LzhamWrapper.csproj" />
+    </ItemGroup>
+
+    <Target Name="CopyExtraFiles" AfterTargets="AfterBuild">
+        <Copy SourceFiles="$(SolutionDir)AssetStudio.FBXNative\bin\Win32\$(Configuration)\AssetStudio.FBXNative.dll" DestinationFolder="$(TargetDir)x86" ContinueOnError="true" />
+        <Copy SourceFiles="$(SolutionDir)AssetStudio.FBXNative\bin\x64\$(Configuration)\AssetStudio.FBXNative.dll" DestinationFolder="$(TargetDir)x64" ContinueOnError="true" />
+        <Copy SourceFiles="$(SolutionDir)AssetStudio.TextureNative\bin\Win32\$(Configuration)\AssetStudio.TextureNative.dll" DestinationFolder="$(TargetDir)x86" ContinueOnError="true" />
+        <Copy SourceFiles="$(SolutionDir)AssetStudio.TextureNative\bin\x64\$(Configuration)\AssetStudio.TextureNative.dll" DestinationFolder="$(TargetDir)x64" ContinueOnError="true" />
+        <Copy SourceFiles="$(SolutionDir)AssetStudio.LzhamNative\bin\Win32\$(Configuration)\AssetStudio.LzhamNative.dll" DestinationFolder="$(TargetDir)x86" ContinueOnError="true" />
+        <Copy SourceFiles="$(SolutionDir)AssetStudio.LzhamNative\bin\x64\$(Configuration)\AssetStudio.LzhamNative.dll" DestinationFolder="$(TargetDir)x64" ContinueOnError="true" />
+    </Target>
+
+</Project>
