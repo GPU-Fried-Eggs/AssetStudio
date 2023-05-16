@@ -8,15 +8,15 @@ namespace AssetStudio.Utility;
 
 public static class SpirVShaderConverter
 {
-    public static string Convert(byte[] m_ProgramCode)
+    public static string Convert(byte[] programCode)
     {
         var sb = new StringBuilder();
-        using (var ms = new MemoryStream(m_ProgramCode))
+        using (var ms = new MemoryStream(programCode))
         {
             using (var reader = new BinaryReader(ms))
             {
                 int requirements = reader.ReadInt32();
-                int minOffset = m_ProgramCode.Length;
+                int minOffset = programCode.Length;
                 int snippetCount = 5;
                 /*if (version[0] > 2019 || (version[0] == 2019 && version[1] >= 3)) //2019.3 and up
                 {
@@ -52,22 +52,17 @@ public static class SpirVShaderConverter
         stream.Position = offset;
         int decodedSize = SmolvDecoder.GetDecodedBufferSize(stream);
         if (decodedSize == 0)
-        {
             throw new Exception("Invalid SMOL-V shader header");
-        }
-        using (var decodedStream = new MemoryStream(new byte[decodedSize]))
+
+        using var decodedStream = new MemoryStream(new byte[decodedSize]);
+        if (SmolvDecoder.Decode(stream, size, decodedStream))
         {
-            if (SmolvDecoder.Decode(stream, size, decodedStream))
-            {
-                decodedStream.Position = 0;
-                var module = Module.ReadFrom(decodedStream);
-                var disassembler = new Disassembler();
-                return disassembler.Disassemble(module, DisassemblyOptions.Default).Replace("\r\n", "\n");
-            }
-            else
-            {
-                throw new Exception("Unable to decode SMOL-V shader");
-            }
+            decodedStream.Position = 0;
+            var module = Module.ReadFrom(decodedStream);
+            var disassembler = new Disassembler();
+            return disassembler.Disassemble(module, DisassemblyOptions.Default).Replace("\r\n", "\n");
         }
+
+        throw new Exception("Unable to decode SMOL-V shader");
     }
 }

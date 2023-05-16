@@ -9,206 +9,206 @@ namespace AssetStudio.Utility;
 public class ModelConverter : IImported
 {
     public ImportedFrame RootFrame { get; protected set; }
-    public List<ImportedMesh> MeshList { get; protected set; } = new List<ImportedMesh>();
-    public List<ImportedMaterial> MaterialList { get; protected set; } = new List<ImportedMaterial>();
-    public List<ImportedTexture> TextureList { get; protected set; } = new List<ImportedTexture>();
-    public List<ImportedKeyframedAnimation> AnimationList { get; protected set; } = new List<ImportedKeyframedAnimation>();
-    public List<ImportedMorph> MorphList { get; protected set; } = new List<ImportedMorph>();
+    public List<ImportedMesh> MeshList { get; protected set; } = new();
+    public List<ImportedMaterial> MaterialList { get; protected set; } = new();
+    public List<ImportedTexture> TextureList { get; protected set; } = new();
+    public List<ImportedKeyframedAnimation> AnimationList { get; protected set; } = new();
+    public List<ImportedMorph> MorphList { get; protected set; } = new();
 
-    private ImageFormat imageFormat;
-    private Avatar avatar;
-    private HashSet<AnimationClip> animationClipHashSet = new HashSet<AnimationClip>();
-    private Dictionary<AnimationClip, string> boundAnimationPathDic = new Dictionary<AnimationClip, string>();
-    private Dictionary<uint, string> bonePathHash = new Dictionary<uint, string>();
-    private Dictionary<Texture2D, string> textureNameDictionary = new Dictionary<Texture2D, string>();
-    private Dictionary<Transform, ImportedFrame> transformDictionary = new Dictionary<Transform, ImportedFrame>();
-    Dictionary<uint, string> morphChannelNames = new Dictionary<uint, string>();
+    private ImageFormat m_ImageFormat;
+    private Avatar m_Avatar;
+    private HashSet<AnimationClip> m_AnimationClipHashSet = new();
+    private Dictionary<AnimationClip, string> m_BoundAnimationPathDic = new();
+    private Dictionary<uint, string> m_BonePathHash = new();
+    private Dictionary<Texture2D, string> m_TextureNameDictionary = new();
+    private Dictionary<Transform, ImportedFrame> m_TransformDictionary = new();
+    Dictionary<uint, string> m_MorphChannelNames = new();
 
-    public ModelConverter(GameObject m_GameObject, ImageFormat imageFormat, AnimationClip[] animationList = null)
+    public ModelConverter(GameObject gameObject, ImageFormat imageFormat, AnimationClip[] animationList = null)
     {
-        this.imageFormat = imageFormat;
-        if (m_GameObject.m_Animator != null)
+        this.m_ImageFormat = imageFormat;
+        if (gameObject.m_Animator != null)
         {
-            InitWithAnimator(m_GameObject.m_Animator);
+            InitWithAnimator(gameObject.m_Animator);
             if (animationList == null)
             {
-                CollectAnimationClip(m_GameObject.m_Animator);
+                CollectAnimationClip(gameObject.m_Animator);
             }
         }
         else
         {
-            InitWithGameObject(m_GameObject);
+            InitWithGameObject(gameObject);
         }
         if (animationList != null)
         {
             foreach (var animationClip in animationList)
             {
-                animationClipHashSet.Add(animationClip);
+                m_AnimationClipHashSet.Add(animationClip);
             }
         }
         ConvertAnimations();
     }
 
-    public ModelConverter(string rootName, List<GameObject> m_GameObjects, ImageFormat imageFormat, AnimationClip[] animationList = null)
+    public ModelConverter(string rootName, List<GameObject> gameObjects, ImageFormat imageFormat, AnimationClip[] animationList = null)
     {
-        this.imageFormat = imageFormat;
+        this.m_ImageFormat = imageFormat;
         RootFrame = CreateFrame(rootName, Vector3.Zero, new Quaternion(0, 0, 0, 0), Vector3.One);
-        foreach (var m_GameObject in m_GameObjects)
+        foreach (var gameObject in gameObjects)
         {
-            if (m_GameObject.m_Animator != null && animationList == null)
+            if (gameObject.m_Animator != null && animationList == null)
             {
-                CollectAnimationClip(m_GameObject.m_Animator);
+                CollectAnimationClip(gameObject.m_Animator);
             }
 
-            var m_Transform = m_GameObject.m_Transform;
-            ConvertTransforms(m_Transform, RootFrame);
-            CreateBonePathHash(m_Transform);
+            var transform = gameObject.m_Transform;
+            ConvertTransforms(transform, RootFrame);
+            CreateBonePathHash(transform);
         }
-        foreach (var m_GameObject in m_GameObjects)
+        foreach (var gameObject in gameObjects)
         {
-            var m_Transform = m_GameObject.m_Transform;
-            ConvertMeshRenderer(m_Transform);
+            var transform = gameObject.m_Transform;
+            ConvertMeshRenderer(transform);
         }
         if (animationList != null)
         {
             foreach (var animationClip in animationList)
             {
-                animationClipHashSet.Add(animationClip);
+                m_AnimationClipHashSet.Add(animationClip);
             }
         }
         ConvertAnimations();
     }
 
-    public ModelConverter(Animator m_Animator, ImageFormat imageFormat, AnimationClip[] animationList = null)
+    public ModelConverter(Animator animator, ImageFormat imageFormat, AnimationClip[] animationList = null)
     {
-        this.imageFormat = imageFormat;
-        InitWithAnimator(m_Animator);
+        this.m_ImageFormat = imageFormat;
+        InitWithAnimator(animator);
         if (animationList == null)
         {
-            CollectAnimationClip(m_Animator);
+            CollectAnimationClip(animator);
         }
         else
         {
             foreach (var animationClip in animationList)
             {
-                animationClipHashSet.Add(animationClip);
+                m_AnimationClipHashSet.Add(animationClip);
             }
         }
         ConvertAnimations();
     }
 
-    private void InitWithAnimator(Animator m_Animator)
+    private void InitWithAnimator(Animator animator)
     {
-        if (m_Animator.m_Avatar.TryGet(out var m_Avatar))
-            avatar = m_Avatar;
+        if (animator.m_Avatar.TryGet(out var avatar))
+            this.m_Avatar = avatar;
 
-        m_Animator.m_GameObject.TryGet(out var m_GameObject);
-        InitWithGameObject(m_GameObject, m_Animator.m_HasTransformHierarchy);
+        animator.m_GameObject.TryGet(out var gameObject);
+        InitWithGameObject(gameObject, animator.m_HasTransformHierarchy);
     }
 
-    private void InitWithGameObject(GameObject m_GameObject, bool hasTransformHierarchy = true)
+    private void InitWithGameObject(GameObject gameObject, bool hasTransformHierarchy = true)
     {
-        var m_Transform = m_GameObject.m_Transform;
+        var transform = gameObject.m_Transform;
         if (!hasTransformHierarchy)
         {
-            ConvertTransforms(m_Transform, null);
+            ConvertTransforms(transform, null);
             DeoptimizeTransformHierarchy();
         }
         else
         {
             var frameList = new List<ImportedFrame>();
-            var tempTransform = m_Transform;
-            while (tempTransform.m_Father.TryGet(out var m_Father))
+            var tempTransform = transform;
+            while (tempTransform.m_Father.TryGet(out var father))
             {
-                frameList.Add(ConvertTransform(m_Father));
-                tempTransform = m_Father;
+                frameList.Add(ConvertTransform(father));
+                tempTransform = father;
             }
             if (frameList.Count > 0)
             {
-                RootFrame = frameList[frameList.Count - 1];
+                RootFrame = frameList[^1];
                 for (var i = frameList.Count - 2; i >= 0; i--)
                 {
                     var frame = frameList[i];
                     var parent = frameList[i + 1];
                     parent.AddChild(frame);
                 }
-                ConvertTransforms(m_Transform, frameList[0]);
+                ConvertTransforms(transform, frameList[0]);
             }
             else
             {
-                ConvertTransforms(m_Transform, null);
+                ConvertTransforms(transform, null);
             }
 
-            CreateBonePathHash(m_Transform);
+            CreateBonePathHash(transform);
         }
 
-        ConvertMeshRenderer(m_Transform);
+        ConvertMeshRenderer(transform);
     }
 
-    private void ConvertMeshRenderer(Transform m_Transform)
+    private void ConvertMeshRenderer(Transform transform)
     {
-        m_Transform.m_GameObject.TryGet(out var m_GameObject);
+        transform.m_GameObject.TryGet(out var gameObject);
 
-        if (m_GameObject.m_MeshRenderer != null)
+        if (gameObject.m_MeshRenderer != null)
         {
-            ConvertMeshRenderer(m_GameObject.m_MeshRenderer);
+            ConvertMeshRenderer(gameObject.m_MeshRenderer);
         }
 
-        if (m_GameObject.m_SkinnedMeshRenderer != null)
+        if (gameObject.m_SkinnedMeshRenderer != null)
         {
-            ConvertMeshRenderer(m_GameObject.m_SkinnedMeshRenderer);
+            ConvertMeshRenderer(gameObject.m_SkinnedMeshRenderer);
         }
 
-        if (m_GameObject.m_Animation != null)
+        if (gameObject.m_Animation != null)
         {
-            foreach (var animation in m_GameObject.m_Animation.m_Animations)
+            foreach (var animation in gameObject.m_Animation.m_Animations)
             {
                 if (animation.TryGet(out var animationClip))
                 {
-                    if (!boundAnimationPathDic.ContainsKey(animationClip))
+                    if (!m_BoundAnimationPathDic.ContainsKey(animationClip))
                     {
-                        boundAnimationPathDic.Add(animationClip, GetTransformPath(m_Transform));
+                        m_BoundAnimationPathDic.Add(animationClip, GetTransformPath(transform));
                     }
-                    animationClipHashSet.Add(animationClip);
+                    m_AnimationClipHashSet.Add(animationClip);
                 }
             }
         }
 
-        foreach (var pptr in m_Transform.m_Children)
+        foreach (var pptr in transform.m_Children)
         {
             if (pptr.TryGet(out var child))
                 ConvertMeshRenderer(child);
         }
     }
 
-    private void CollectAnimationClip(Animator m_Animator)
+    private void CollectAnimationClip(Animator animator)
     {
-        if (m_Animator.m_Controller.TryGet(out var m_Controller))
+        if (animator.m_Controller.TryGet(out var controller))
         {
-            switch (m_Controller)
+            switch (controller)
             {
-                case AnimatorOverrideController m_AnimatorOverrideController:
+                case AnimatorOverrideController animatorOverrideController:
                 {
-                    if (m_AnimatorOverrideController.m_Controller.TryGet<AnimatorController>(out var m_AnimatorController))
+                    if (animatorOverrideController.m_Controller.TryGet<AnimatorController>(out var animatorController))
                     {
-                        foreach (var pptr in m_AnimatorController.m_AnimationClips)
+                        foreach (var pptr in animatorController.m_AnimationClips)
                         {
-                            if (pptr.TryGet(out var m_AnimationClip))
+                            if (pptr.TryGet(out var animationClip))
                             {
-                                animationClipHashSet.Add(m_AnimationClip);
+                                m_AnimationClipHashSet.Add(animationClip);
                             }
                         }
                     }
                     break;
                 }
 
-                case AnimatorController m_AnimatorController:
+                case AnimatorController animatorController:
                 {
-                    foreach (var pptr in m_AnimatorController.m_AnimationClips)
+                    foreach (var pptr in animatorController.m_AnimationClips)
                     {
-                        if (pptr.TryGet(out var m_AnimationClip))
+                        if (pptr.TryGet(out var animationClip))
                         {
-                            animationClipHashSet.Add(m_AnimationClip);
+                            m_AnimationClipHashSet.Add(animationClip);
                         }
                     }
                     break;
@@ -220,17 +220,16 @@ public class ModelConverter : IImported
     private ImportedFrame ConvertTransform(Transform trans)
     {
         var frame = new ImportedFrame(trans.m_Children.Length);
-        transformDictionary.Add(trans, frame);
-        trans.m_GameObject.TryGet(out var m_GameObject);
-        frame.Name = m_GameObject.m_Name;
+        m_TransformDictionary.Add(trans, frame);
+        trans.m_GameObject.TryGet(out var gameObject);
+        frame.Name = gameObject.m_Name;
         SetFrame(frame, trans.m_LocalPosition, trans.m_LocalRotation, trans.m_LocalScale);
         return frame;
     }
 
     private static ImportedFrame CreateFrame(string name, Vector3 t, Quaternion q, Vector3 s)
     {
-        var frame = new ImportedFrame();
-        frame.Name = name;
+        var frame = new ImportedFrame { Name = name };
         SetFrame(frame, t, q, s);
         return frame;
     }
@@ -266,8 +265,8 @@ public class ModelConverter : IImported
         if (mesh == null)
             return;
         var iMesh = new ImportedMesh();
-        meshR.m_GameObject.TryGet(out var m_GameObject2);
-        iMesh.Path = GetTransformPath(m_GameObject2.m_Transform);
+        meshR.m_GameObject.TryGet(out var gameObject2);
+        iMesh.Path = GetTransformPath(gameObject2.m_Transform);
         iMesh.SubmeshList = new List<ImportedSubmesh>();
         var subHashSet = new HashSet<int>();
         var combine = false;
@@ -310,35 +309,34 @@ public class ModelConverter : IImported
                 firstFace += numFaces;
                 continue;
             }
-            var submesh = mesh.m_SubMeshes[i];
-            var iSubmesh = new ImportedSubmesh();
+            var subMesh = mesh.m_SubMeshes[i];
+            var importedSubMesh = new ImportedSubmesh();
             Material mat = null;
             if (i - firstSubMesh < meshR.m_Materials.Length)
             {
-                if (meshR.m_Materials[i - firstSubMesh].TryGet(out var m_Material))
+                if (meshR.m_Materials[i - firstSubMesh].TryGet(out var material))
                 {
-                    mat = m_Material;
+                    mat = material;
                 }
             }
-            ImportedMaterial iMat = ConvertMaterial(mat);
-            iSubmesh.Material = iMat.Name;
-            iSubmesh.BaseVertex = (int)mesh.m_SubMeshes[i].firstVertex;
+            var iMat = ConvertMaterial(mat);
+            importedSubMesh.Material = iMat.Name;
+            importedSubMesh.BaseVertex = (int)mesh.m_SubMeshes[i].firstVertex;
 
             //Face
-            iSubmesh.FaceList = new List<ImportedFace>(numFaces);
+            importedSubMesh.FaceList = new List<ImportedFace>(numFaces);
             var end = firstFace + numFaces;
             for (int f = firstFace; f < end; f++)
             {
-                var face = new ImportedFace();
-                face.VertexIndices = new int[3];
-                face.VertexIndices[0] = (int)(mesh.m_Indices[f * 3 + 2] - submesh.firstVertex);
-                face.VertexIndices[1] = (int)(mesh.m_Indices[f * 3 + 1] - submesh.firstVertex);
-                face.VertexIndices[2] = (int)(mesh.m_Indices[f * 3] - submesh.firstVertex);
-                iSubmesh.FaceList.Add(face);
+                var face = new ImportedFace { VertexIndices = new int[3] };
+                face.VertexIndices[0] = (int)(mesh.m_Indices[f * 3 + 2] - subMesh.firstVertex);
+                face.VertexIndices[1] = (int)(mesh.m_Indices[f * 3 + 1] - subMesh.firstVertex);
+                face.VertexIndices[2] = (int)(mesh.m_Indices[f * 3] - subMesh.firstVertex);
+                importedSubMesh.FaceList.Add(face);
             }
             firstFace = end;
 
-            iMesh.SubmeshList.Add(iSubmesh);
+            iMesh.SubmeshList.Add(importedSubMesh);
         }
 
         // Shared vertex list
@@ -368,20 +366,20 @@ public class ModelConverter : IImported
             }
             //UV
             iVertex.UV = new float[8][];
-            for (int uv = 0; uv < 8; uv++)
+            for (int i = 0; i < 8; i++)
             {
-                if (iMesh.hasUV[uv])
+                if (iMesh.hasUV[i])
                 {
-                    var m_UV = mesh.GetUV(uv);
-                    if (m_UV.Length == mesh.m_VertexCount * 2)
+                    var uv = mesh.GetUV(i);
+                    if (uv.Length == mesh.m_VertexCount * 2)
                     {
                         c = 2;
                     }
-                    else if (m_UV.Length == mesh.m_VertexCount * 3)
+                    else if (uv.Length == mesh.m_VertexCount * 3)
                     {
                         c = 3;
                     }
-                    iVertex.UV[uv] = new[] { m_UV[j * c], m_UV[j * c + 1] };
+                    iVertex.UV[i] = new[] { uv[j * c], uv[j * c + 1] };
                 }
             }
             //Tangent
@@ -469,9 +467,9 @@ public class ModelConverter : IImported
                 for (int i = 0; i < boneCount; i++)
                 {
                     var bone = new ImportedBone();
-                    if (sMesh.m_Bones[i].TryGet(out var m_Transform))
+                    if (sMesh.m_Bones[i].TryGet(out var transform))
                     {
-                        bone.Path = GetTransformPath(m_Transform);
+                        bone.Path = GetTransformPath(transform);
                     }
                     var convert = Matrix4x4.Scale(new Vector3(-1, 1, 1));
                     bone.Matrix = convert * mesh.m_BindPose[i] * convert;
@@ -511,7 +509,7 @@ public class ModelConverter : IImported
                     var crc = new SevenZip.CRC();
                     var bytes = Encoding.UTF8.GetBytes(blendShapeName);
                     crc.Update(bytes, 0, (uint)bytes.Length);
-                    morphChannelNames[crc.GetDigest()] = blendShapeName;
+                    m_MorphChannelNames[crc.GetDigest()] = blendShapeName;
 
                     channel.Name = shapeChannel.name.Split('.').Last();
                     channel.KeyframeList = new List<ImportedMorphKeyframe>(shapeChannel.frameCount);
@@ -555,8 +553,8 @@ public class ModelConverter : IImported
         //TODO combine mesh
         if (combine)
         {
-            meshR.m_GameObject.TryGet(out var m_GameObject);
-            var frame = RootFrame.FindChild(m_GameObject.m_Name);
+            meshR.m_GameObject.TryGet(out var gameObject);
+            var frame = RootFrame.FindChild(gameObject.m_Name);
             if (frame != null)
             {
                 frame.LocalPosition = RootFrame.LocalPosition;
@@ -577,19 +575,16 @@ public class ModelConverter : IImported
     {
         if (meshR is SkinnedMeshRenderer sMesh)
         {
-            if (sMesh.m_Mesh.TryGet(out var m_Mesh))
-            {
-                return m_Mesh;
-            }
+            if (sMesh.m_Mesh.TryGet(out var mesh)) return mesh;
         }
         else
         {
-            meshR.m_GameObject.TryGet(out var m_GameObject);
-            if (m_GameObject.m_MeshFilter != null)
+            meshR.m_GameObject.TryGet(out var gameObject);
+            if (gameObject.m_MeshFilter != null)
             {
-                if (m_GameObject.m_MeshFilter.m_Mesh.TryGet(out var m_Mesh))
+                if (gameObject.m_MeshFilter.m_Mesh.TryGet(out var mesh))
                 {
-                    return m_Mesh;
+                    return mesh;
                 }
             }
         }
@@ -599,16 +594,16 @@ public class ModelConverter : IImported
 
     private string GetTransformPath(Transform transform)
     {
-        if (transformDictionary.TryGetValue(transform, out var frame))
+        if (m_TransformDictionary.TryGetValue(transform, out var frame))
         {
             return frame.Path;
         }
         return null;
     }
 
-    private string FixBonePath(AnimationClip m_AnimationClip, string path)
+    private string FixBonePath(AnimationClip animationClip, string path)
     {
-        if (boundAnimationPathDic.TryGetValue(m_AnimationClip, out var basePath))
+        if (m_BoundAnimationPathDic.TryGetValue(animationClip, out var basePath))
         {
             path = basePath + "/" + path;
         }
@@ -623,13 +618,13 @@ public class ModelConverter : IImported
 
     private static string GetTransformPathByFather(Transform transform)
     {
-        transform.m_GameObject.TryGet(out var m_GameObject);
+        transform.m_GameObject.TryGet(out var gameObject);
         if (transform.m_Father.TryGet(out var father))
         {
-            return GetTransformPathByFather(father) + "/" + m_GameObject.m_Name;
+            return GetTransformPathByFather(father) + "/" + gameObject.m_Name;
         }
 
-        return m_GameObject.m_Name;
+        return gameObject.m_Name;
     }
 
     private ImportedMaterial ConvertMaterial(Material mat)
@@ -638,20 +633,19 @@ public class ModelConverter : IImported
         if (mat != null)
         {
             iMat = ImportedHelpers.FindMaterial(mat.m_Name, MaterialList);
-            if (iMat != null)
+            if (iMat != null) return iMat;
+            iMat = new ImportedMaterial
             {
-                return iMat;
-            }
-            iMat = new ImportedMaterial();
-            iMat.Name = mat.m_Name;
-            //default values
-            iMat.Diffuse = new Color(0.8f, 0.8f, 0.8f, 1);
-            iMat.Ambient = new Color(0.2f, 0.2f, 0.2f, 1);
-            iMat.Emissive = new Color(0, 0, 0, 1);
-            iMat.Specular = new Color(0.2f, 0.2f, 0.2f, 1);
-            iMat.Reflection = new Color(0, 0, 0, 1);
-            iMat.Shininess = 20f;
-            iMat.Transparency = 0f;
+                Name = mat.m_Name,
+                //default values
+                Diffuse = new Color(0.8f, 0.8f, 0.8f, 1),
+                Ambient = new Color(0.2f, 0.2f, 0.2f, 1),
+                Emissive = new Color(0, 0, 0, 1),
+                Specular = new Color(0.2f, 0.2f, 0.2f, 1),
+                Reflection = new Color(0, 0, 0, 1),
+                Shininess = 20f,
+                Transparency = 0f
+            };
             foreach (var col in mat.m_SavedProperties.m_Colors)
             {
                 switch (col.Key)
@@ -691,7 +685,7 @@ public class ModelConverter : IImported
             iMat.Textures = new List<ImportedMaterialTexture>();
             foreach (var texEnv in mat.m_SavedProperties.m_TexEnvs)
             {
-                if (!texEnv.Value.m_Texture.TryGet<Texture2D>(out var m_Texture2D)) //TODO other Texture
+                if (!texEnv.Value.m_Texture.TryGet<Texture2D>(out var texture2D)) //TODO other Texture
                 {
                     continue;
                 }
@@ -711,33 +705,33 @@ public class ModelConverter : IImported
 
                 texture.Dest = dest;
 
-                var ext = $".{imageFormat.ToString().ToLower()}";
-                if (textureNameDictionary.TryGetValue(m_Texture2D, out var textureName))
+                var ext = $".{m_ImageFormat.ToString().ToLower()}";
+                if (m_TextureNameDictionary.TryGetValue(texture2D, out var textureName))
                 {
                     texture.Name = textureName;
                 }
-                else if (ImportedHelpers.FindTexture(m_Texture2D.m_Name + ext, TextureList) != null) //已有相同名字的图片
+                else if (ImportedHelpers.FindTexture(texture2D.m_Name + ext, TextureList) != null) //已有相同名字的图片
                 {
                     for (int i = 1; ; i++)
                     {
-                        var name = m_Texture2D.m_Name + $" ({i}){ext}";
+                        var name = texture2D.m_Name + $" ({i}){ext}";
                         if (ImportedHelpers.FindTexture(name, TextureList) == null)
                         {
                             texture.Name = name;
-                            textureNameDictionary.Add(m_Texture2D, name);
+                            m_TextureNameDictionary.Add(texture2D, name);
                             break;
                         }
                     }
                 }
                 else
                 {
-                    texture.Name = m_Texture2D.m_Name + ext;
-                    textureNameDictionary.Add(m_Texture2D, texture.Name);
+                    texture.Name = texture2D.m_Name + ext;
+                    m_TextureNameDictionary.Add(texture2D, texture.Name);
                 }
 
                 texture.Offset = texEnv.Value.m_Offset;
                 texture.Scale = texEnv.Value.m_Scale;
-                ConvertTexture2D(m_Texture2D, texture.Name);
+                ConvertTexture2D(texture2D, texture.Name);
             }
 
             MaterialList.Add(iMat);
@@ -749,15 +743,12 @@ public class ModelConverter : IImported
         return iMat;
     }
 
-    private void ConvertTexture2D(Texture2D m_Texture2D, string name)
+    private void ConvertTexture2D(Texture2D texture2D, string name)
     {
         var iTex = ImportedHelpers.FindTexture(name, TextureList);
-        if (iTex != null)
-        {
-            return;
-        }
+        if (iTex != null) return;
 
-        var stream = m_Texture2D.ConvertToStream(imageFormat, true);
+        var stream = texture2D.ConvertToStream(m_ImageFormat, true);
         if (stream != null)
         {
             using (stream)
@@ -770,7 +761,7 @@ public class ModelConverter : IImported
 
     private void ConvertAnimations()
     {
-        foreach (var animationClip in animationClipHashSet)
+        foreach (var animationClip in m_AnimationClipHashSet)
         {
             var iAnim = new ImportedKeyframedAnimation();
             var name = animationClip.m_Name;
@@ -792,12 +783,12 @@ public class ModelConverter : IImported
             AnimationList.Add(iAnim);
             if (animationClip.m_Legacy)
             {
-                foreach (var m_CompressedRotationCurve in animationClip.m_CompressedRotationCurves)
+                foreach (var compressedRotationCurve in animationClip.m_CompressedRotationCurves)
                 {
-                    var track = iAnim.FindTrack(FixBonePath(animationClip, m_CompressedRotationCurve.m_Path));
+                    var track = iAnim.FindTrack(FixBonePath(animationClip, compressedRotationCurve.m_Path));
 
-                    var numKeys = m_CompressedRotationCurve.m_Times.m_NumItems;
-                    var data = m_CompressedRotationCurve.m_Times.UnpackInts();
+                    var numKeys = compressedRotationCurve.m_Times.m_NumItems;
+                    var data = compressedRotationCurve.m_Times.UnpackInts();
                     var times = new float[numKeys];
                     int t = 0;
                     for (int i = 0; i < numKeys; i++)
@@ -805,7 +796,7 @@ public class ModelConverter : IImported
                         t += data[i];
                         times[i] = t * 0.01f;
                     }
-                    var quats = m_CompressedRotationCurve.m_Values.UnpackQuats();
+                    var quats = compressedRotationCurve.m_Values.UnpackQuats();
 
                     for (int i = 0; i < numKeys; i++)
                     {
@@ -814,54 +805,54 @@ public class ModelConverter : IImported
                         track.Rotations.Add(new ImportedKeyframe<Vector3>(times[i], value));
                     }
                 }
-                foreach (var m_RotationCurve in animationClip.m_RotationCurves)
+                foreach (var rotationCurve in animationClip.m_RotationCurves)
                 {
-                    var track = iAnim.FindTrack(FixBonePath(animationClip, m_RotationCurve.path));
-                    foreach (var m_Curve in m_RotationCurve.curve.m_Curve)
+                    var track = iAnim.FindTrack(FixBonePath(animationClip, rotationCurve.path));
+                    foreach (var curve in rotationCurve.curve.m_Curve)
                     {
-                        var value = Fbx.QuaternionToEuler(new Quaternion(m_Curve.value.X, -m_Curve.value.Y, -m_Curve.value.Z, m_Curve.value.W));
-                        track.Rotations.Add(new ImportedKeyframe<Vector3>(m_Curve.time, value));
+                        var value = Fbx.QuaternionToEuler(new Quaternion(curve.value.X, -curve.value.Y, -curve.value.Z, curve.value.W));
+                        track.Rotations.Add(new ImportedKeyframe<Vector3>(curve.time, value));
                     }
                 }
-                foreach (var m_PositionCurve in animationClip.m_PositionCurves)
+                foreach (var positionCurve in animationClip.m_PositionCurves)
                 {
-                    var track = iAnim.FindTrack(FixBonePath(animationClip, m_PositionCurve.path));
-                    foreach (var m_Curve in m_PositionCurve.curve.m_Curve)
+                    var track = iAnim.FindTrack(FixBonePath(animationClip, positionCurve.path));
+                    foreach (var curve in positionCurve.curve.m_Curve)
                     {
-                        track.Translations.Add(new ImportedKeyframe<Vector3>(m_Curve.time, new Vector3(-m_Curve.value.X, m_Curve.value.Y, m_Curve.value.Z)));
+                        track.Translations.Add(new ImportedKeyframe<Vector3>(curve.time, new Vector3(-curve.value.X, curve.value.Y, curve.value.Z)));
                     }
                 }
-                foreach (var m_ScaleCurve in animationClip.m_ScaleCurves)
+                foreach (var scaleCurve in animationClip.m_ScaleCurves)
                 {
-                    var track = iAnim.FindTrack(FixBonePath(animationClip, m_ScaleCurve.path));
-                    foreach (var m_Curve in m_ScaleCurve.curve.m_Curve)
+                    var track = iAnim.FindTrack(FixBonePath(animationClip, scaleCurve.path));
+                    foreach (var curve in scaleCurve.curve.m_Curve)
                     {
-                        track.Scalings.Add(new ImportedKeyframe<Vector3>(m_Curve.time, new Vector3(m_Curve.value.X, m_Curve.value.Y, m_Curve.value.Z)));
+                        track.Scalings.Add(new ImportedKeyframe<Vector3>(curve.time, new Vector3(curve.value.X, curve.value.Y, curve.value.Z)));
                     }
                 }
                 if (animationClip.m_EulerCurves != null)
                 {
-                    foreach (var m_EulerCurve in animationClip.m_EulerCurves)
+                    foreach (var eulerCurve in animationClip.m_EulerCurves)
                     {
-                        var track = iAnim.FindTrack(FixBonePath(animationClip, m_EulerCurve.path));
-                        foreach (var m_Curve in m_EulerCurve.curve.m_Curve)
+                        var track = iAnim.FindTrack(FixBonePath(animationClip, eulerCurve.path));
+                        foreach (var curve in eulerCurve.curve.m_Curve)
                         {
-                            track.Rotations.Add(new ImportedKeyframe<Vector3>(m_Curve.time, new Vector3(m_Curve.value.X, -m_Curve.value.Y, -m_Curve.value.Z)));
+                            track.Rotations.Add(new ImportedKeyframe<Vector3>(curve.time, new Vector3(curve.value.X, -curve.value.Y, -curve.value.Z)));
                         }
                     }
                 }
-                foreach (var m_FloatCurve in animationClip.m_FloatCurves)
+                foreach (var floatCurve in animationClip.m_FloatCurves)
                 {
-                    if (m_FloatCurve.classID == ClassIDType.SkinnedMeshRenderer) //BlendShape
+                    if (floatCurve.classID == ClassIDType.SkinnedMeshRenderer) //BlendShape
                     {
-                        var channelName = m_FloatCurve.attribute;
+                        var channelName = floatCurve.attribute;
                         int dotPos = channelName.IndexOf('.');
                         if (dotPos >= 0)
                         {
                             channelName = channelName.Substring(dotPos + 1);
                         }
 
-                        var path = FixBonePath(animationClip, m_FloatCurve.path);
+                        var path = FixBonePath(animationClip, floatCurve.path);
                         if (string.IsNullOrEmpty(path))
                         {
                             path = GetPathByChannelName(channelName);
@@ -869,50 +860,50 @@ public class ModelConverter : IImported
                         var track = iAnim.FindTrack(path);
                         track.BlendShape = new ImportedBlendShape();
                         track.BlendShape.ChannelName = channelName;
-                        foreach (var m_Curve in m_FloatCurve.curve.m_Curve)
+                        foreach (var curve in floatCurve.curve.m_Curve)
                         {
-                            track.BlendShape.Keyframes.Add(new ImportedKeyframe<float>(m_Curve.time, m_Curve.value));
+                            track.BlendShape.Keyframes.Add(new ImportedKeyframe<float>(curve.time, curve.value));
                         }
                     }
                 }
             }
             else
             {
-                var m_Clip = animationClip.m_MuscleClip.m_Clip;
-                var streamedFrames = m_Clip.m_StreamedClip.ReadData();
-                var m_ClipBindingConstant = animationClip.m_ClipBindingConstant ?? m_Clip.ConvertValueArrayToGenericBinding();
+                var clip = animationClip.m_MuscleClip.m_Clip;
+                var streamedFrames = clip.m_StreamedClip.ReadData();
+                var clipBindingConstant = animationClip.m_ClipBindingConstant ?? clip.ConvertValueArrayToGenericBinding();
                 for (int frameIndex = 1; frameIndex < streamedFrames.Count - 1; frameIndex++)
                 {
                     var frame = streamedFrames[frameIndex];
                     var streamedValues = frame.keyList.Select(x => x.value).ToArray();
                     for (int curveIndex = 0; curveIndex < frame.keyList.Length;)
                     {
-                        ReadCurveData(iAnim, m_ClipBindingConstant, frame.keyList[curveIndex].index, frame.time, streamedValues, 0, ref curveIndex);
+                        ReadCurveData(iAnim, clipBindingConstant, frame.keyList[curveIndex].index, frame.time, streamedValues, 0, ref curveIndex);
                     }
                 }
-                var m_DenseClip = m_Clip.m_DenseClip;
-                var streamCount = m_Clip.m_StreamedClip.curveCount;
-                for (int frameIndex = 0; frameIndex < m_DenseClip.m_FrameCount; frameIndex++)
+                var denseClip = clip.m_DenseClip;
+                var streamCount = clip.m_StreamedClip.curveCount;
+                for (int frameIndex = 0; frameIndex < denseClip.m_FrameCount; frameIndex++)
                 {
-                    var time = m_DenseClip.m_BeginTime + frameIndex / m_DenseClip.m_SampleRate;
-                    var frameOffset = frameIndex * m_DenseClip.m_CurveCount;
-                    for (int curveIndex = 0; curveIndex < m_DenseClip.m_CurveCount;)
+                    var time = denseClip.m_BeginTime + frameIndex / denseClip.m_SampleRate;
+                    var frameOffset = frameIndex * denseClip.m_CurveCount;
+                    for (int curveIndex = 0; curveIndex < denseClip.m_CurveCount;)
                     {
                         var index = streamCount + curveIndex;
-                        ReadCurveData(iAnim, m_ClipBindingConstant, (int)index, time, m_DenseClip.m_SampleArray, (int)frameOffset, ref curveIndex);
+                        ReadCurveData(iAnim, clipBindingConstant, (int)index, time, denseClip.m_SampleArray, (int)frameOffset, ref curveIndex);
                     }
                 }
-                if (m_Clip.m_ConstantClip != null)
+                if (clip.m_ConstantClip != null)
                 {
-                    var m_ConstantClip = m_Clip.m_ConstantClip;
-                    var denseCount = m_Clip.m_DenseClip.m_CurveCount;
+                    var constantClip = clip.m_ConstantClip;
+                    var denseCount = clip.m_DenseClip.m_CurveCount;
                     var time2 = 0.0f;
                     for (int i = 0; i < 2; i++)
                     {
-                        for (int curveIndex = 0; curveIndex < m_ConstantClip.data.Length;)
+                        for (int curveIndex = 0; curveIndex < constantClip.data.Length;)
                         {
                             var index = streamCount + denseCount + curveIndex;
-                            ReadCurveData(iAnim, m_ClipBindingConstant, (int)index, time2, m_ConstantClip.data, 0, ref curveIndex);
+                            ReadCurveData(iAnim, clipBindingConstant, (int)index, time2, constantClip.data, 0, ref curveIndex);
                         }
                         time2 = animationClip.m_MuscleClip.m_StopTime;
                     }
@@ -921,9 +912,9 @@ public class ModelConverter : IImported
         }
     }
 
-    private void ReadCurveData(ImportedKeyframedAnimation iAnim, AnimationClipBindingConstant m_ClipBindingConstant, int index, float time, float[] data, int offset, ref int curveIndex)
+    private void ReadCurveData(ImportedKeyframedAnimation iAnim, AnimationClipBindingConstant clipBindingConstant, int index, float time, float[] data, int offset, ref int curveIndex)
     {
-        var binding = m_ClipBindingConstant.FindBinding(index);
+        var binding = clipBindingConstant.FindBinding(index);
         if (binding.typeID == ClassIDType.SkinnedMeshRenderer) //BlendShape
         {
             var channelName = GetChannelNameFromHash(binding.attribute);
@@ -944,8 +935,7 @@ public class ModelConverter : IImported
                 bPath = GetPathByChannelName(channelName);
             }
             var bTrack = iAnim.FindTrack(bPath);
-            bTrack.BlendShape = new ImportedBlendShape();
-            bTrack.BlendShape.ChannelName = channelName;
+            bTrack.BlendShape = new ImportedBlendShape { ChannelName = channelName };
             bTrack.BlendShape.Keyframes.Add(new ImportedKeyframe<float>(time, data[curveIndex++ + offset]));
         }
         else if (binding.typeID == ClassIDType.Transform)
@@ -1002,10 +992,10 @@ public class ModelConverter : IImported
 
     private string GetPathFromHash(uint hash)
     {
-        bonePathHash.TryGetValue(hash, out var boneName);
+        m_BonePathHash.TryGetValue(hash, out var boneName);
         if (string.IsNullOrEmpty(boneName))
         {
-            boneName = avatar?.FindBonePath(hash);
+            boneName = m_Avatar?.FindBonePath(hash);
         }
         if (string.IsNullOrEmpty(boneName))
         {
@@ -1014,13 +1004,13 @@ public class ModelConverter : IImported
         return boneName;
     }
 
-    private void CreateBonePathHash(Transform m_Transform)
+    private void CreateBonePathHash(Transform transform)
     {
-        var name = GetTransformPathByFather(m_Transform);
+        var name = GetTransformPathByFather(transform);
         var crc = new SevenZip.CRC();
         var bytes = Encoding.UTF8.GetBytes(name);
         crc.Update(bytes, 0, (uint)bytes.Length);
-        bonePathHash[crc.GetDigest()] = name;
+        m_BonePathHash[crc.GetDigest()] = name;
         int index;
         while ((index = name.IndexOf("/", StringComparison.Ordinal)) >= 0)
         {
@@ -1028,9 +1018,9 @@ public class ModelConverter : IImported
             crc = new SevenZip.CRC();
             bytes = Encoding.UTF8.GetBytes(name);
             crc.Update(bytes, 0, (uint)bytes.Length);
-            bonePathHash[crc.GetDigest()] = name;
+            m_BonePathHash[crc.GetDigest()] = name;
         }
-        foreach (var pptr in m_Transform.m_Children)
+        foreach (var pptr in transform.m_Children)
         {
             if (pptr.TryGet(out var child))
                 CreateBonePathHash(child);
@@ -1039,13 +1029,13 @@ public class ModelConverter : IImported
 
     private void DeoptimizeTransformHierarchy()
     {
-        if (avatar == null)
+        if (m_Avatar == null)
             throw new Exception("Transform hierarchy has been optimized, but can't find Avatar to deoptimize.");
         // 1. Figure out the skeletonPaths from the unstripped avatar
         var skeletonPaths = new List<string>();
-        foreach (var id in avatar.m_Avatar.m_AvatarSkeleton.m_ID)
+        foreach (var id in m_Avatar.m_Avatar.m_AvatarSkeleton.m_ID)
         {
-            var path = avatar.FindBonePath(id);
+            var path = m_Avatar.FindBonePath(id);
             skeletonPaths.Add(path);
         }
         // 2. Restore the original transform hierarchy
@@ -1067,7 +1057,7 @@ public class ModelConverter : IImported
                 var parentFramePath = path.Substring(0, path.LastIndexOf('/'));
                 parentFrame = RootFrame.FindRelativeFrameWithPath(parentFramePath);
             }
-            var skeletonPose = avatar.m_Avatar.m_DefaultPose;
+            var skeletonPose = m_Avatar.m_Avatar.m_DefaultPose;
             var xform = skeletonPose.m_X[i];
             var frame = RootFrame.FindChild(transformName);
             if (frame != null)
@@ -1099,13 +1089,6 @@ public class ModelConverter : IImported
 
     private string GetChannelNameFromHash(uint attribute)
     {
-        if (morphChannelNames.TryGetValue(attribute, out var name))
-        {
-            return name;
-        }
-        else
-        {
-            return null;
-        }
+        return m_MorphChannelNames.TryGetValue(attribute, out var name) ? name : null;
     }
 }

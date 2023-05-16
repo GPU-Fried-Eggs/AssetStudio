@@ -9,61 +9,45 @@ namespace AssetStudio.FBXWrapper;
 internal sealed partial class FbxExporterContext : IDisposable
 {
 
-    private IntPtr _pContext;
-    private readonly Dictionary<ImportedFrame, IntPtr> _frameToNode;
-    private readonly List<KeyValuePair<string, IntPtr>> _createdMaterials;
-    private readonly Dictionary<string, IntPtr> _createdTextures;
+    private IntPtr m_Context = AsFbxCreateContext();
+    private readonly Dictionary<ImportedFrame, IntPtr> m_FrameToNode = new();
+    private readonly List<KeyValuePair<string, IntPtr>> m_CreatedMaterials = new();
+    private readonly Dictionary<string, IntPtr> m_CreatedTextures = new();
 
-    public FbxExporterContext()
-    {
-        _pContext = AsFbxCreateContext();
-        _frameToNode = new Dictionary<ImportedFrame, IntPtr>();
-        _createdMaterials = new List<KeyValuePair<string, IntPtr>>();
-        _createdTextures = new Dictionary<string, IntPtr>();
-    }
-
-    ~FbxExporterContext()
-    {
-        Dispose(false);
-    }
+    ~FbxExporterContext() => Dispose(false);
 
     public void Dispose()
     {
-        if (IsDisposed)
-        {
-            return;
-        }
+        if (IsDisposed) return;
 
         Dispose(true);
         GC.SuppressFinalize(this);
     }
 
-    public bool IsDisposed { get; private set; }
+    public bool IsDisposed { get; set; }
 
     private void Dispose(bool disposing)
     {
         IsDisposed = true;
 
-        _frameToNode.Clear();
-        _createdMaterials.Clear();
-        _createdTextures.Clear();
+        m_FrameToNode.Clear();
+        m_CreatedMaterials.Clear();
+        m_CreatedTextures.Clear();
 
-        AsFbxDisposeContext(ref _pContext);
+        AsFbxDisposeContext(ref m_Context);
     }
 
     private void EnsureNotDisposed()
     {
         if (IsDisposed)
-        {
             throw new ObjectDisposedException(nameof(FbxExporterContext));
-        }
     }
 
     internal void Initialize(string fileName, float scaleFactor, int versionIndex, bool isAscii, bool is60Fps)
     {
         EnsureNotDisposed();
 
-        var b = AsFbxInitializeContext(_pContext, fileName, scaleFactor, versionIndex, isAscii, is60Fps, out var errorMessage);
+        var b = AsFbxInitializeContext(m_Context, fileName, scaleFactor, versionIndex, isAscii, is60Fps, out var errorMessage);
 
         if (!b)
         {
@@ -72,31 +56,28 @@ internal sealed partial class FbxExporterContext : IDisposable
         }
     }
 
-    internal void SetFramePaths(HashSet<string> framePaths)
+    internal void SetFramePaths(HashSet<string>? framePaths)
     {
         EnsureNotDisposed();
 
-        if (framePaths == null || framePaths.Count == 0)
-        {
-            return;
-        }
+        if (framePaths == null || framePaths.Count == 0) return;
 
         var framePathList = new List<string>(framePaths);
         var framePathArray = framePathList.ToArray();
 
-        AsFbxSetFramePaths(_pContext, framePathArray);
+        AsFbxSetFramePaths(m_Context, framePathArray);
     }
 
     internal void ExportScene()
     {
         EnsureNotDisposed();
 
-        AsFbxExportScene(_pContext);
+        AsFbxExportScene(m_Context);
     }
 
     internal void ExportFrame(List<ImportedMesh> meshList, List<ImportedFrame> meshFrames, ImportedFrame rootFrame)
     {
-        var rootNode = AsFbxGetSceneRootNode(_pContext);
+        var rootNode = AsFbxGetSceneRootNode(m_Context);
 
         Debug.Assert(rootNode != IntPtr.Zero);
 
@@ -111,14 +92,14 @@ internal sealed partial class FbxExporterContext : IDisposable
             var parentNode = nodeStack.Pop();
             var frame = frameStack.Pop();
 
-            var childNode = AsFbxExportSingleFrame(_pContext, parentNode, frame.Path, frame.Name, frame.LocalPosition, frame.LocalRotation, frame.LocalScale);
+            var childNode = AsFbxExportSingleFrame(m_Context, parentNode, frame.Path, frame.Name, frame.LocalPosition, frame.LocalRotation, frame.LocalScale);
 
             if (meshList != null && ImportedHelpers.FindMesh(frame.Path, meshList) != null)
             {
                 meshFrames.Add(frame);
             }
 
-            _frameToNode.Add(frame, childNode);
+            m_FrameToNode.Add(frame, childNode);
 
             for (var i = frame.Count - 1; i >= 0; i -= 1)
             {
@@ -128,7 +109,7 @@ internal sealed partial class FbxExporterContext : IDisposable
         }
     }
 
-    internal void SetJointsNode(ImportedFrame rootFrame, HashSet<string> bonePaths, bool castToBone, float boneSize)
+    internal void SetJointsNode(ImportedFrame rootFrame, HashSet<string>? bonePaths, bool castToBone, float boneSize)
     {
         var frameStack = new Stack<ImportedFrame>();
 
@@ -138,25 +119,25 @@ internal sealed partial class FbxExporterContext : IDisposable
         {
             var frame = frameStack.Pop();
 
-            if (_frameToNode.TryGetValue(frame, out var node))
+            if (m_FrameToNode.TryGetValue(frame, out var node))
             {
                 Debug.Assert(node != IntPtr.Zero);
 
                 if (castToBone)
                 {
-                    AsFbxSetJointsNode_CastToBone(_pContext, node, boneSize);
+                    AsFbxSetJointsNode_CastToBone(m_Context, node, boneSize);
                 }
                 else
                 {
-                    Debug.Assert(bonePaths != null);
+                    if (bonePaths == null) throw new Exception("Bone path is null");
 
                     if (bonePaths.Contains(frame.Path))
                     {
-                        AsFbxSetJointsNode_BoneInPath(_pContext, node, boneSize);
+                        AsFbxSetJointsNode_BoneInPath(m_Context, node, boneSize);
                     }
                     else
                     {
-                        AsFbxSetJointsNode_Generic(_pContext, node);
+                        AsFbxSetJointsNode_Generic(m_Context, node);
                     }
                 }
             }
@@ -170,39 +151,32 @@ internal sealed partial class FbxExporterContext : IDisposable
 
     internal void PrepareMaterials(int materialCount, int textureCount)
     {
-        AsFbxPrepareMaterials(_pContext, materialCount, textureCount);
+        AsFbxPrepareMaterials(m_Context, materialCount, textureCount);
     }
 
     internal void ExportMeshFromFrame(ImportedFrame rootFrame, ImportedFrame meshFrame, List<ImportedMesh> meshList, List<ImportedMaterial> materialList, List<ImportedTexture> textureList, bool exportSkins, bool exportAllUvsAsDiffuseMaps)
     {
-        var meshNode = _frameToNode[meshFrame];
+        var meshNode = m_FrameToNode[meshFrame];
         var mesh = ImportedHelpers.FindMesh(meshFrame.Path, meshList);
 
         ExportMesh(rootFrame, materialList, textureList, meshNode, mesh, exportSkins, exportAllUvsAsDiffuseMaps);
     }
 
-    private IntPtr ExportTexture(ImportedTexture texture)
+    private IntPtr ExportTexture(ImportedTexture? texture)
     {
-        if (texture == null)
-        {
-            return IntPtr.Zero;
-        }
+        if (texture == null) return IntPtr.Zero;
 
-        if (_createdTextures.ContainsKey(texture.Name))
-        {
-            return _createdTextures[texture.Name];
-        }
+        if (m_CreatedTextures.TryGetValue(texture.Name, out var exportTexture))
+            return exportTexture;
 
-        var pTex = AsFbxCreateTexture(_pContext, texture.Name);
+        var pTex = AsFbxCreateTexture(m_Context, texture.Name);
 
-        _createdTextures.Add(texture.Name, pTex);
+        m_CreatedTextures.Add(texture.Name, pTex);
 
         var file = new FileInfo(texture.Name);
 
-        using (var writer = new BinaryWriter(file.Create()))
-        {
-            writer.Write(texture.Data);
-        }
+        using var writer = new BinaryWriter(file.Create());
+        writer.Write(texture.Data);
 
         return pTex;
     }
@@ -226,14 +200,14 @@ internal sealed partial class FbxExporterContext : IDisposable
             {
                 pClusterArray = AsFbxMeshCreateClusterArray(totalBoneCount);
 
-                foreach (var bone in boneList)
+                foreach (var bone in boneList!)
                 {
                     if (bone.Path != null)
                     {
                         var frame = rootFrame.FindFrameByPath(bone.Path);
-                        var boneNode = _frameToNode[frame];
+                        var boneNode = m_FrameToNode[frame];
 
-                        var cluster = AsFbxMeshCreateCluster(_pContext, boneNode);
+                        var cluster = AsFbxMeshCreateCluster(m_Context, boneNode);
 
                         AsFbxMeshAddCluster(pClusterArray, cluster);
                     }
@@ -244,7 +218,7 @@ internal sealed partial class FbxExporterContext : IDisposable
                 }
             }
 
-            var mesh = AsFbxMeshCreateMesh(_pContext, frameNode);
+            var mesh = AsFbxMeshCreateMesh(m_Context, frameNode);
 
             AsFbxMeshInitControlPoints(mesh, importedMesh.VertexList.Count);
 
@@ -255,7 +229,7 @@ internal sealed partial class FbxExporterContext : IDisposable
 
             for (int i = 0; i < importedMesh.hasUV.Length; i++)
             {
-                if (!importedMesh.hasUV[i]) { continue; }
+                if (!importedMesh.hasUV[i]) continue;
 
                 if (i == 1 && !exportAllUvsAsDiffuseMaps)
                 {
@@ -286,12 +260,12 @@ internal sealed partial class FbxExporterContext : IDisposable
 
                 if (mat != null)
                 {
-                    var foundMat = _createdMaterials.FindIndex(kv => kv.Key == mat.Name);
+                    var foundMat = m_CreatedMaterials.FindIndex(kv => kv.Key == mat.Name);
                     IntPtr pMat;
 
                     if (foundMat >= 0)
                     {
-                        pMat = _createdMaterials[foundMat].Value;
+                        pMat = m_CreatedMaterials[foundMat].Value;
                     }
                     else
                     {
@@ -301,9 +275,9 @@ internal sealed partial class FbxExporterContext : IDisposable
                         var specular = mat.Specular;
                         var reflection = mat.Reflection;
 
-                        pMat = AsFbxCreateMaterial(_pContext, mat.Name, in diffuse, in ambient, in emissive, in specular, in reflection, mat.Shininess, mat.Transparency);
+                        pMat = AsFbxCreateMaterial(m_Context, mat.Name, in diffuse, in ambient, in emissive, in specular, in reflection, mat.Shininess, mat.Transparency);
 
-                        _createdMaterials.Add(new KeyValuePair<string, IntPtr>(mat.Name, pMat));
+                        m_CreatedMaterials.Add(new KeyValuePair<string, IntPtr>(mat.Name, pMat));
                     }
 
                     materialIndex = AsFbxAddMaterialToFrame(frameNode, pMat);
@@ -328,8 +302,6 @@ internal sealed partial class FbxExporterContext : IDisposable
                                     hasTexture = true;
                                     break;
                                 }
-                                default:
-                                    break;
                             }
                         }
                     }
@@ -410,7 +382,7 @@ internal sealed partial class FbxExporterContext : IDisposable
 
                 try
                 {
-                    pSkinContext = AsFbxMeshCreateSkinContext(_pContext, frameNode);
+                    pSkinContext = AsFbxMeshCreateSkinContext(m_Context, frameNode);
 
                     unsafe
                     {
@@ -423,7 +395,7 @@ internal sealed partial class FbxExporterContext : IDisposable
                                 continue;
                             }
 
-                            var m = boneList[j].Matrix;
+                            var m = boneList![j].Matrix;
 
                             CopyMatrix4x4(in m, boneMatrix);
 
@@ -464,7 +436,7 @@ internal sealed partial class FbxExporterContext : IDisposable
         return 4 * m + n;
     }
 
-    internal void ExportAnimations(ImportedFrame rootFrame, List<ImportedKeyframedAnimation> animationList, bool eulerFilter, float filterPrecision)
+    internal void ExportAnimations(ImportedFrame rootFrame, List<ImportedKeyframedAnimation>? animationList, bool eulerFilter, float filterPrecision)
     {
         if (animationList == null || animationList.Count == 0)
         {
@@ -480,20 +452,12 @@ internal sealed partial class FbxExporterContext : IDisposable
             for (int i = 0; i < animationList.Count; i++)
             {
                 var importedAnimation = animationList[i];
-                string takeName;
 
-                if (importedAnimation.Name != null)
-                {
-                    takeName = importedAnimation.Name;
-                }
-                else
-                {
-                    takeName = $"Take{i.ToString()}";
-                }
+                var takeName = importedAnimation.Name ?? $"Take{i.ToString()}";
 
-                AsFbxAnimPrepareStackAndLayer(_pContext, pAnimContext, takeName);
+                AsFbxAnimPrepareStackAndLayer(m_Context, pAnimContext, takeName);
 
-                ExportKeyframedAnimation(rootFrame, importedAnimation, pAnimContext, filterPrecision);
+                ExportKeyframeAnimation(rootFrame, importedAnimation, pAnimContext, filterPrecision);
             }
         }
         finally
@@ -502,7 +466,7 @@ internal sealed partial class FbxExporterContext : IDisposable
         }
     }
 
-    private void ExportKeyframedAnimation(ImportedFrame rootFrame, ImportedKeyframedAnimation parser, IntPtr pAnimContext, float filterPrecision)
+    private void ExportKeyframeAnimation(ImportedFrame rootFrame, ImportedKeyframedAnimation parser, IntPtr pAnimContext, float filterPrecision)
     {
         foreach (var track in parser.TrackList)
         {
@@ -518,7 +482,7 @@ internal sealed partial class FbxExporterContext : IDisposable
                 continue;
             }
 
-            var pNode = _frameToNode[frame];
+            var pNode = m_FrameToNode[frame];
 
             AsFbxAnimLoadCurves(pNode, pAnimContext);
 
@@ -575,12 +539,9 @@ internal sealed partial class FbxExporterContext : IDisposable
         }
     }
 
-    internal void ExportMorphs(ImportedFrame rootFrame, List<ImportedMorph> morphList)
+    internal void ExportMorphs(ImportedFrame rootFrame, List<ImportedMorph>? morphList)
     {
-        if (morphList == null || morphList.Count == 0)
-        {
-            return;
-        }
+        if (morphList == null || morphList.Count == 0) return;
 
         foreach (var morph in morphList)
         {
@@ -591,7 +552,7 @@ internal sealed partial class FbxExporterContext : IDisposable
                 continue;
             }
 
-            var pNode = _frameToNode[frame];
+            var pNode = m_FrameToNode[frame];
 
             var pMorphContext = IntPtr.Zero;
 
@@ -599,17 +560,17 @@ internal sealed partial class FbxExporterContext : IDisposable
             {
                 pMorphContext = AsFbxMorphCreateContext();
 
-                AsFbxMorphInitializeContext(_pContext, pMorphContext, pNode);
+                AsFbxMorphInitializeContext(m_Context, pMorphContext, pNode);
 
                 foreach (var channel in morph.Channels)
                 {
-                    AsFbxMorphAddBlendShapeChannel(_pContext, pMorphContext, channel.Name);
+                    AsFbxMorphAddBlendShapeChannel(m_Context, pMorphContext, channel.Name);
 
                     for (var i = 0; i < channel.KeyframeList.Count; i++)
                     {
                         var keyframe = channel.KeyframeList[i];
 
-                        AsFbxMorphAddBlendShapeChannelShape(_pContext, pMorphContext, keyframe.Weight, i == 0 ? channel.Name : $"{channel.Name}_{i + 1}");
+                        AsFbxMorphAddBlendShapeChannelShape(m_Context, pMorphContext, keyframe.Weight, i == 0 ? channel.Name : $"{channel.Name}_{i + 1}");
 
                         AsFbxMorphCopyBlendShapeControlPoints(pMorphContext);
 

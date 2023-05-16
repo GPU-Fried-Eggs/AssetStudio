@@ -13,8 +13,7 @@ public class AssemblyLoader
     {
         var files = Directory.GetFiles(path, "*.dll");
         var resolver = new MyAssemblyResolver();
-        var readerParameters = new ReaderParameters();
-        readerParameters.AssemblyResolver = resolver;
+        var readerParameters = new ReaderParameters { AssemblyResolver = resolver };
         foreach (var file in files)
         {
             try

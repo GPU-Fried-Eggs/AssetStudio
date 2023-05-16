@@ -4,7 +4,6 @@ namespace AssetStudio.TextureWrapper;
 
 unsafe partial class TextureDecoder
 {
-
     [DllImport(T2DDll.DllName, CallingConvention = CallingConvention.Winapi)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DecodeDXT1(void* data, int width, int height, void* image);
@@ -85,5 +84,4 @@ unsafe partial class TextureDecoder
 
     [DllImport(T2DDll.DllName, CallingConvention = CallingConvention.Winapi)]
     private static extern void UnpackUnityCrunch(void* data, uint dataSize, out void* result, out uint resultSize);
-
 }

@@ -47,10 +47,11 @@ public class ParsedOperand
 		var v = Value as IBitEnumOperandValue;
 
 		uint result = 0;
-		foreach (var k in v.Values.Keys)
-		{
-			result |= k;
-		}
+		if (v?.Values.Keys != null)
+			foreach (var k in v.Values.Keys)
+			{
+				result |= k;
+			}
 
 		return (T)(object)result;
 	}

@@ -6,11 +6,7 @@ namespace AssetStudio.TextureWrapper;
 
 public static unsafe partial class TextureDecoder
 {
-
-    static TextureDecoder()
-    {
-        DllLoader.PreloadDll(T2DDll.DllName);
-    }
+    static TextureDecoder() => DllLoader.PreloadDll(T2DDll.DllName);
 
     public static bool DecodeDXT1(byte[] data, int width, int height, byte[] image)
     {
@@ -210,7 +206,7 @@ public static unsafe partial class TextureDecoder
         }
     }
 
-    public static byte[] UnpackCrunch(byte[] data)
+    public static byte[]? UnpackCrunch(byte[] data)
     {
         void* pBuffer;
         uint bufferSize;
@@ -220,10 +216,7 @@ public static unsafe partial class TextureDecoder
             UnpackCrunch(pData, (uint)data.Length, out pBuffer, out bufferSize);
         }
 
-        if (pBuffer == null)
-        {
-            return null;
-        }
+        if (pBuffer == null) return null;
 
         var result = new byte[bufferSize];
 
@@ -234,7 +227,7 @@ public static unsafe partial class TextureDecoder
         return result;
     }
 
-    public static byte[] UnpackUnityCrunch(byte[] data)
+    public static byte[]? UnpackUnityCrunch(byte[] data)
     {
         void* pBuffer;
         uint bufferSize;
@@ -244,10 +237,7 @@ public static unsafe partial class TextureDecoder
             UnpackUnityCrunch(pData, (uint)data.Length, out pBuffer, out bufferSize);
         }
 
-        if (pBuffer == null)
-        {
-            return null;
-        }
+        if (pBuffer == null) return null;
 
         var result = new byte[bufferSize];
 

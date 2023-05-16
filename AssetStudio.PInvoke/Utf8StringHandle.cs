@@ -10,12 +10,9 @@ public class Utf8StringHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     private static readonly UTF8Encoding Utf8;
 
-    static Utf8StringHandle()
-    {
-        Utf8 = new UTF8Encoding(false);
-    }
+    static Utf8StringHandle() => Utf8 = new UTF8Encoding(false);
 
-    public Utf8StringHandle(string str) : base(true)
+    public Utf8StringHandle(string? str) : base(true)
     {
         IntPtr buffer;
 
@@ -50,12 +47,9 @@ public class Utf8StringHandle : SafeHandleZeroOrMinusOneIsInvalid
         SetHandle(buffer);
     }
 
-    public static string ReadUtf8StringFromPointer(IntPtr lpstr)
+    public static string? ReadUtf8StringFromPointer(IntPtr lpstr)
     {
-        if (lpstr == IntPtr.Zero || lpstr == new IntPtr(-1))
-        {
-            return null;
-        }
+        if (lpstr == IntPtr.Zero || lpstr == new IntPtr(-1)) return null;
 
         var byteCount = 0;
 
@@ -70,10 +64,7 @@ public class Utf8StringHandle : SafeHandleZeroOrMinusOneIsInvalid
             }
         }
 
-        if (byteCount == 0)
-        {
-            return string.Empty;
-        }
+        if (byteCount == 0) return string.Empty;
 
         var strBuffer = new byte[byteCount];
 
@@ -86,10 +77,7 @@ public class Utf8StringHandle : SafeHandleZeroOrMinusOneIsInvalid
 
     protected override bool ReleaseHandle()
     {
-        if (!IsInvalid)
-        {
-            Marshal.FreeHGlobal(handle);
-        }
+        if (!IsInvalid) Marshal.FreeHGlobal(handle);
 
         return true;
     }

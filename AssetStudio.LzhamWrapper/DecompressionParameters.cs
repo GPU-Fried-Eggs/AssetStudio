@@ -8,7 +8,7 @@ public class DecompressionParameters
     
     public DecompressionFlags Flags { get; set; }
     
-    public byte[] SeedBytes { get; set; }
+    public byte[]? SeedBytes { get; set; }
     
     public uint MaxUpdateInterval { get; set; }
     

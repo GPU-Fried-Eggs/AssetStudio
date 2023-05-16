@@ -13,32 +13,31 @@ public static class DllLoader
     private const int RTLD_NOW = 0x2;
     private const int RTLD_GLOBAL = 0x100;
 
-    public static void PreloadDll(string dllName)
+    public static void PreloadDll(string dllName, bool useAssemblyPath = false)
     {
-        var dllDir = GetDirectedDllDirectory();
+        var dllDir = GetDirectedDllDirectory(useAssemblyPath);
 
         // Not using OperatingSystem.Platform.
         // See: https://www.mono-project.com/docs/faq/technical/#how-to-detect-the-execution-platform
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
             Win32.LoadDll(dllDir, dllName);
-        }
         else
-        {
             Posix.LoadDll(dllDir, dllName);
-        }
     }
 
-    private static string GetDirectedDllDirectory()
+    private static string GetDirectedDllDirectory(bool useAssemblyPath)
     {
-        var localPath = Assembly.GetExecutingAssembly().Location;
+        var localPath = useAssemblyPath ? Assembly.GetExecutingAssembly().Location : Process.GetCurrentProcess().MainModule?.FileName;
         var localDir = Path.GetDirectoryName(localPath);
 
         var subDir = Environment.Is64BitProcess ? "x64" : "x86";
 
+        if (localDir == null) throw new FileLoadException($"Unable to access to: {localPath}");
+
         var directedDllDir = Path.Combine(localDir, subDir);
 
         return directedDllDir;
+
     }
 
     private static class Win32

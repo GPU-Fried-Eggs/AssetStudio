@@ -6,34 +6,34 @@ namespace AssetStudio.Utility;
 
 public class Texture2DConverter
 {
-    private ResourceReader reader;
+    private ResourceReader m_Reader;
     private int m_Width;
     private int m_Height;
     private TextureFormat m_TextureFormat;
-    private int[] version;
-    private BuildTarget platform;
-    private int outPutSize;
+    private int[] m_Version;
+    private BuildTarget m_Platform;
+    private int m_OutPutSize;
 
-    public Texture2DConverter(Texture2D m_Texture2D)
+    public Texture2DConverter(Texture2D texture2D)
     {
-        reader = m_Texture2D.image_data;
-        m_Width = m_Texture2D.m_Width;
-        m_Height = m_Texture2D.m_Height;
-        m_TextureFormat = m_Texture2D.m_TextureFormat;
-        version = m_Texture2D.version;
-        platform = m_Texture2D.platform;
-        outPutSize = m_Width * m_Height * 4;
+        m_Reader = texture2D.image_data;
+        m_Width = texture2D.m_Width;
+        m_Height = texture2D.m_Height;
+        m_TextureFormat = texture2D.m_TextureFormat;
+        m_Version = texture2D.version;
+        m_Platform = texture2D.platform;
+        m_OutPutSize = m_Width * m_Height * 4;
     }
 
     public bool DecodeTexture2D(byte[] bytes)
     {
-        if (reader.Size == 0 || m_Width == 0 || m_Height == 0)
+        if (m_Reader.Size == 0 || m_Width == 0 || m_Height == 0)
         {
             return false;
         }
         var flag = false;
-        var buff = BigArrayPool<byte>.Shared.Rent(reader.Size);
-        reader.GetData(buff);
+        var buff = BigArrayPool<byte>.Shared.Rent(m_Reader.Size);
+        m_Reader.GetData(buff);
         switch (m_TextureFormat)
         {
             case TextureFormat.Alpha8: //test pass
@@ -213,38 +213,36 @@ public class Texture2DConverter
         return flag;
     }
 
-    private void SwapBytesForXbox(byte[] image_data)
+    private void SwapBytesForXbox(byte[] imageData)
     {
-        if (platform == BuildTarget.XBOX360)
+        if (m_Platform == BuildTarget.XBOX360)
         {
-            for (var i = 0; i < reader.Size / 2; i++)
+            for (var i = 0; i < m_Reader.Size / 2; i++)
             {
-                var b = image_data[i * 2];
-                image_data[i * 2] = image_data[i * 2 + 1];
-                image_data[i * 2 + 1] = b;
+                (imageData[i * 2], imageData[i * 2 + 1]) = (imageData[i * 2 + 1], imageData[i * 2]);
             }
         }
     }
 
-    private bool DecodeAlpha8(byte[] image_data, byte[] buff)
+    private bool DecodeAlpha8(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         var span = new Span<byte>(buff);
         span.Fill(0xFF);
         for (var i = 0; i < size; i++)
         {
-            buff[i * 4 + 3] = image_data[i];
+            buff[i * 4 + 3] = imageData[i];
         }
         return true;
     }
 
-    private bool DecodeARGB4444(byte[] image_data, byte[] buff)
+    private bool DecodeARGB4444(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         var pixelNew = new byte[4];
         for (var i = 0; i < size; i++)
         {
-            var pixelOldShort = BitConverter.ToUInt16(image_data, i * 2);
+            var pixelOldShort = BitConverter.ToUInt16(imageData, i * 2);
             pixelNew[0] = (byte)(pixelOldShort & 0x000f);
             pixelNew[1] = (byte)((pixelOldShort & 0x00f0) >> 4);
             pixelNew[2] = (byte)((pixelOldShort & 0x0f00) >> 8);
@@ -256,49 +254,49 @@ public class Texture2DConverter
         return true;
     }
 
-    private bool DecodeRGB24(byte[] image_data, byte[] buff)
+    private bool DecodeRGB24(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         for (var i = 0; i < size; i++)
         {
-            buff[i * 4] = image_data[i * 3 + 2];
-            buff[i * 4 + 1] = image_data[i * 3 + 1];
-            buff[i * 4 + 2] = image_data[i * 3 + 0];
+            buff[i * 4] = imageData[i * 3 + 2];
+            buff[i * 4 + 1] = imageData[i * 3 + 1];
+            buff[i * 4 + 2] = imageData[i * 3 + 0];
             buff[i * 4 + 3] = 255;
         }
         return true;
     }
 
-    private bool DecodeRGBA32(byte[] image_data, byte[] buff)
+    private bool DecodeRGBA32(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
-            buff[i] = image_data[i + 2];
-            buff[i + 1] = image_data[i + 1];
-            buff[i + 2] = image_data[i + 0];
-            buff[i + 3] = image_data[i + 3];
+            buff[i] = imageData[i + 2];
+            buff[i + 1] = imageData[i + 1];
+            buff[i + 2] = imageData[i + 0];
+            buff[i + 3] = imageData[i + 3];
         }
         return true;
     }
 
-    private bool DecodeARGB32(byte[] image_data, byte[] buff)
+    private bool DecodeARGB32(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
-            buff[i] = image_data[i + 3];
-            buff[i + 1] = image_data[i + 2];
-            buff[i + 2] = image_data[i + 1];
-            buff[i + 3] = image_data[i + 0];
+            buff[i] = imageData[i + 3];
+            buff[i + 1] = imageData[i + 2];
+            buff[i + 2] = imageData[i + 1];
+            buff[i + 3] = imageData[i + 0];
         }
         return true;
     }
 
-    private bool DecodeRGB565(byte[] image_data, byte[] buff)
+    private bool DecodeRGB565(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         for (var i = 0; i < size; i++)
         {
-            var p = BitConverter.ToUInt16(image_data, i * 2);
+            var p = BitConverter.ToUInt16(imageData, i * 2);
             buff[i * 4] = (byte)((p << 3) | (p >> 2 & 7));
             buff[i * 4 + 1] = (byte)((p >> 3 & 0xfc) | (p >> 9 & 3));
             buff[i * 4 + 2] = (byte)((p >> 8 & 0xf8) | (p >> 13));
@@ -307,36 +305,36 @@ public class Texture2DConverter
         return true;
     }
 
-    private bool DecodeR16(byte[] image_data, byte[] buff)
+    private bool DecodeR16(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         for (var i = 0; i < size; i++)
         {
             buff[i * 4] = 0; //b
             buff[i * 4 + 1] = 0; //g
-            buff[i * 4 + 2] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i * 2)); //r
+            buff[i * 4 + 2] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i * 2)); //r
             buff[i * 4 + 3] = 255; //a
         }
         return true;
     }
 
-    private bool DecodeDXT1(byte[] image_data, byte[] buff)
+    private bool DecodeDXT1(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeDXT1(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeDXT1(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeDXT5(byte[] image_data, byte[] buff)
+    private bool DecodeDXT5(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeDXT5(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeDXT5(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeRGBA4444(byte[] image_data, byte[] buff)
+    private bool DecodeRGBA4444(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         var pixelNew = new byte[4];
         for (var i = 0; i < size; i++)
         {
-            var pixelOldShort = BitConverter.ToUInt16(image_data, i * 2);
+            var pixelOldShort = BitConverter.ToUInt16(imageData, i * 2);
             pixelNew[0] = (byte)((pixelOldShort & 0x00f0) >> 4);
             pixelNew[1] = (byte)((pixelOldShort & 0x0f00) >> 8);
             pixelNew[2] = (byte)((pixelOldShort & 0xf000) >> 12);
@@ -348,86 +346,86 @@ public class Texture2DConverter
         return true;
     }
 
-    private bool DecodeBGRA32(byte[] image_data, byte[] buff)
+    private bool DecodeBGRA32(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
-            buff[i] = image_data[i];
-            buff[i + 1] = image_data[i + 1];
-            buff[i + 2] = image_data[i + 2];
-            buff[i + 3] = image_data[i + 3];
+            buff[i] = imageData[i];
+            buff[i + 1] = imageData[i + 1];
+            buff[i + 2] = imageData[i + 2];
+            buff[i + 3] = imageData[i + 3];
         }
         return true;
     }
 
-    private bool DecodeRHalf(byte[] image_data, byte[] buff)
+    private bool DecodeRHalf(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
             buff[i] = 0;
             buff[i + 1] = 0;
-            buff[i + 2] = (byte)Math.Round(Half.ToHalf(image_data, i / 2) * 255f);
+            buff[i + 2] = (byte)Math.Round(Half.ToHalf(imageData, i / 2) * 255f);
             buff[i + 3] = 255;
         }
         return true;
     }
 
-    private bool DecodeRGHalf(byte[] image_data, byte[] buff)
+    private bool DecodeRGHalf(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
             buff[i] = 0;
-            buff[i + 1] = (byte)Math.Round(Half.ToHalf(image_data, i + 2) * 255f);
-            buff[i + 2] = (byte)Math.Round(Half.ToHalf(image_data, i) * 255f);
+            buff[i + 1] = (byte)Math.Round(Half.ToHalf(imageData, i + 2) * 255f);
+            buff[i + 2] = (byte)Math.Round(Half.ToHalf(imageData, i) * 255f);
             buff[i + 3] = 255;
         }
         return true;
     }
 
-    private bool DecodeRGBAHalf(byte[] image_data, byte[] buff)
+    private bool DecodeRGBAHalf(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
-            buff[i] = (byte)Math.Round(Half.ToHalf(image_data, i * 2 + 4) * 255f);
-            buff[i + 1] = (byte)Math.Round(Half.ToHalf(image_data, i * 2 + 2) * 255f);
-            buff[i + 2] = (byte)Math.Round(Half.ToHalf(image_data, i * 2) * 255f);
-            buff[i + 3] = (byte)Math.Round(Half.ToHalf(image_data, i * 2 + 6) * 255f);
+            buff[i] = (byte)Math.Round(Half.ToHalf(imageData, i * 2 + 4) * 255f);
+            buff[i + 1] = (byte)Math.Round(Half.ToHalf(imageData, i * 2 + 2) * 255f);
+            buff[i + 2] = (byte)Math.Round(Half.ToHalf(imageData, i * 2) * 255f);
+            buff[i + 3] = (byte)Math.Round(Half.ToHalf(imageData, i * 2 + 6) * 255f);
         }
         return true;
     }
 
-    private bool DecodeRFloat(byte[] image_data, byte[] buff)
+    private bool DecodeRFloat(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
             buff[i] = 0;
             buff[i + 1] = 0;
-            buff[i + 2] = (byte)Math.Round(BitConverter.ToSingle(image_data, i) * 255f);
+            buff[i + 2] = (byte)Math.Round(BitConverter.ToSingle(imageData, i) * 255f);
             buff[i + 3] = 255;
         }
         return true;
     }
 
-    private bool DecodeRGFloat(byte[] image_data, byte[] buff)
+    private bool DecodeRGFloat(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
             buff[i] = 0;
-            buff[i + 1] = (byte)Math.Round(BitConverter.ToSingle(image_data, i * 2 + 4) * 255f);
-            buff[i + 2] = (byte)Math.Round(BitConverter.ToSingle(image_data, i * 2) * 255f);
+            buff[i + 1] = (byte)Math.Round(BitConverter.ToSingle(imageData, i * 2 + 4) * 255f);
+            buff[i + 2] = (byte)Math.Round(BitConverter.ToSingle(imageData, i * 2) * 255f);
             buff[i + 3] = 255;
         }
         return true;
     }
 
-    private bool DecodeRGBAFloat(byte[] image_data, byte[] buff)
+    private bool DecodeRGBAFloat(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
-            buff[i] = (byte)Math.Round(BitConverter.ToSingle(image_data, i * 4 + 8) * 255f);
-            buff[i + 1] = (byte)Math.Round(BitConverter.ToSingle(image_data, i * 4 + 4) * 255f);
-            buff[i + 2] = (byte)Math.Round(BitConverter.ToSingle(image_data, i * 4) * 255f);
-            buff[i + 3] = (byte)Math.Round(BitConverter.ToSingle(image_data, i * 4 + 12) * 255f);
+            buff[i] = (byte)Math.Round(BitConverter.ToSingle(imageData, i * 4 + 8) * 255f);
+            buff[i + 1] = (byte)Math.Round(BitConverter.ToSingle(imageData, i * 4 + 4) * 255f);
+            buff[i + 2] = (byte)Math.Round(BitConverter.ToSingle(imageData, i * 4) * 255f);
+            buff[i + 3] = (byte)Math.Round(BitConverter.ToSingle(imageData, i * 4 + 12) * 255f);
         }
         return true;
     }
@@ -438,7 +436,7 @@ public class Texture2DConverter
         return (byte)(byte.MaxValue < x ? byte.MaxValue : (x > byte.MinValue ? x : byte.MinValue));
     }
 
-    private bool DecodeYUY2(byte[] image_data, byte[] buff)
+    private bool DecodeYUY2(byte[] imageData, byte[] buff)
     {
         int p = 0;
         int o = 0;
@@ -447,10 +445,10 @@ public class Texture2DConverter
         {
             for (int i = 0; i < halfWidth; ++i)
             {
-                int y0 = image_data[p++];
-                int u0 = image_data[p++];
-                int y1 = image_data[p++];
-                int v0 = image_data[p++];
+                int y0 = imageData[p++];
+                int u0 = imageData[p++];
+                int y1 = imageData[p++];
+                int v0 = imageData[p++];
                 int c = y0 - 16;
                 int d = u0 - 128;
                 int e = v0 - 128;
@@ -468,11 +466,11 @@ public class Texture2DConverter
         return true;
     }
 
-    private bool DecodeRGB9e5Float(byte[] image_data, byte[] buff)
+    private bool DecodeRGB9e5Float(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
-            var n = BitConverter.ToInt32(image_data, i);
+            var n = BitConverter.ToInt32(imageData, i);
             var scale = n >> 27 & 0x1f;
             var scalef = Math.Pow(2, scale - 24);
             var b = n >> 18 & 0x1ff;
@@ -486,29 +484,29 @@ public class Texture2DConverter
         return true;
     }
 
-    private bool DecodeBC4(byte[] image_data, byte[] buff)
+    private bool DecodeBC4(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeBC4(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeBC4(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeBC5(byte[] image_data, byte[] buff)
+    private bool DecodeBC5(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeBC5(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeBC5(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeBC6H(byte[] image_data, byte[] buff)
+    private bool DecodeBC6H(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeBC6(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeBC6(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeBC7(byte[] image_data, byte[] buff)
+    private bool DecodeBC7(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeBC7(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeBC7(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeDXT1Crunched(byte[] image_data, byte[] buff)
+    private bool DecodeDXT1Crunched(byte[] imageData, byte[] buff)
     {
-        if (UnpackCrunch(image_data, out var result))
+        if (UnpackCrunch(imageData, out var result))
         {
             if (DecodeDXT1(result, buff))
             {
@@ -518,9 +516,9 @@ public class Texture2DConverter
         return false;
     }
 
-    private bool DecodeDXT5Crunched(byte[] image_data, byte[] buff)
+    private bool DecodeDXT5Crunched(byte[] imageData, byte[] buff)
     {
-        if (UnpackCrunch(image_data, out var result))
+        if (UnpackCrunch(imageData, out var result))
         {
             if (DecodeDXT5(result, buff))
             {
@@ -530,95 +528,95 @@ public class Texture2DConverter
         return false;
     }
 
-    private bool DecodePVRTC(byte[] image_data, byte[] buff, bool is2bpp)
+    private bool DecodePVRTC(byte[] imageData, byte[] buff, bool is2bpp)
     {
-        return TextureDecoder.DecodePVRTC(image_data, m_Width, m_Height, buff, is2bpp);
+        return TextureDecoder.DecodePVRTC(imageData, m_Width, m_Height, buff, is2bpp);
     }
 
-    private bool DecodeETC1(byte[] image_data, byte[] buff)
+    private bool DecodeETC1(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeETC1(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeETC1(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeATCRGB4(byte[] image_data, byte[] buff)
+    private bool DecodeATCRGB4(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeATCRGB4(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeATCRGB4(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeATCRGBA8(byte[] image_data, byte[] buff)
+    private bool DecodeATCRGBA8(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeATCRGBA8(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeATCRGBA8(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeEACR(byte[] image_data, byte[] buff)
+    private bool DecodeEACR(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeEACR(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeEACR(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeEACRSigned(byte[] image_data, byte[] buff)
+    private bool DecodeEACRSigned(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeEACRSigned(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeEACRSigned(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeEACRG(byte[] image_data, byte[] buff)
+    private bool DecodeEACRG(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeEACRG(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeEACRG(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeEACRGSigned(byte[] image_data, byte[] buff)
+    private bool DecodeEACRGSigned(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeEACRGSigned(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeEACRGSigned(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeETC2(byte[] image_data, byte[] buff)
+    private bool DecodeETC2(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeETC2(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeETC2(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeETC2A1(byte[] image_data, byte[] buff)
+    private bool DecodeETC2A1(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeETC2A1(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeETC2A1(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeETC2A8(byte[] image_data, byte[] buff)
+    private bool DecodeETC2A8(byte[] imageData, byte[] buff)
     {
-        return TextureDecoder.DecodeETC2A8(image_data, m_Width, m_Height, buff);
+        return TextureDecoder.DecodeETC2A8(imageData, m_Width, m_Height, buff);
     }
 
-    private bool DecodeASTC(byte[] image_data, byte[] buff, int blocksize)
+    private bool DecodeASTC(byte[] imageData, byte[] buff, int blocksize)
     {
-        return TextureDecoder.DecodeASTC(image_data, m_Width, m_Height, blocksize, blocksize, buff);
+        return TextureDecoder.DecodeASTC(imageData, m_Width, m_Height, blocksize, blocksize, buff);
     }
 
-    private bool DecodeRG16(byte[] image_data, byte[] buff)
+    private bool DecodeRG16(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         for (var i = 0; i < size; i++)
         {
             buff[i * 4] = 0; //B
-            buff[i * 4 + 1] = image_data[i * 2 + 1];//G
-            buff[i * 4 + 2] = image_data[i * 2];//R
+            buff[i * 4 + 1] = imageData[i * 2 + 1];//G
+            buff[i * 4 + 2] = imageData[i * 2];//R
             buff[i * 4 + 3] = 255;//A
         }
         return true;
     }
 
-    private bool DecodeR8(byte[] image_data, byte[] buff)
+    private bool DecodeR8(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         for (var i = 0; i < size; i++)
         {
             buff[i * 4] = 0; //B
             buff[i * 4 + 1] = 0; //G
-            buff[i * 4 + 2] = image_data[i];//R
+            buff[i * 4 + 2] = imageData[i];//R
             buff[i * 4 + 3] = 255;//A
         }
         return true;
     }
 
-    private bool DecodeETC1Crunched(byte[] image_data, byte[] buff)
+    private bool DecodeETC1Crunched(byte[] imageData, byte[] buff)
     {
-        if (UnpackCrunch(image_data, out var result))
+        if (UnpackCrunch(imageData, out var result))
         {
             if (DecodeETC1(result, buff))
             {
@@ -628,9 +626,9 @@ public class Texture2DConverter
         return false;
     }
 
-    private bool DecodeETC2A8Crunched(byte[] image_data, byte[] buff)
+    private bool DecodeETC2A8Crunched(byte[] imageData, byte[] buff)
     {
-        if (UnpackCrunch(image_data, out var result))
+        if (UnpackCrunch(imageData, out var result))
         {
             if (DecodeETC2A8(result, buff))
             {
@@ -646,59 +644,56 @@ public class Texture2DConverter
         return (byte)(((component * 255) + 32895) >> 16);
     }
 
-    private bool DecodeRG32(byte[] image_data, byte[] buff)
+    private bool DecodeRG32(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
             buff[i] = 0;                                                                          //b
-            buff[i + 1] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i + 2));     //g
-            buff[i + 2] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i));         //r
+            buff[i + 1] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i + 2));     //g
+            buff[i + 2] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i));         //r
             buff[i + 3] = byte.MaxValue;                                                          //a
         }
         return true;
     }
 
-    private bool DecodeRGB48(byte[] image_data, byte[] buff)
+    private bool DecodeRGB48(byte[] imageData, byte[] buff)
     {
         var size = m_Width * m_Height;
         for (var i = 0; i < size; i++)
         {
-            buff[i * 4] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i * 6 + 4));     //b
-            buff[i * 4 + 1] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i * 6 + 2)); //g
-            buff[i * 4 + 2] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i * 6));     //r
+            buff[i * 4] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i * 6 + 4));     //b
+            buff[i * 4 + 1] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i * 6 + 2)); //g
+            buff[i * 4 + 2] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i * 6));     //r
             buff[i * 4 + 3] = byte.MaxValue;                                                          //a
         }
         return true;
     }
 
-    private bool DecodeRGBA64(byte[] image_data, byte[] buff)
+    private bool DecodeRGBA64(byte[] imageData, byte[] buff)
     {
-        for (var i = 0; i < outPutSize; i += 4)
+        for (var i = 0; i < m_OutPutSize; i += 4)
         {
-            buff[i] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i * 2 + 4));     //b
-            buff[i + 1] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i * 2 + 2)); //g
-            buff[i + 2] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i * 2));     //r
-            buff[i + 3] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(image_data, i * 2 + 6)); //a
+            buff[i] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i * 2 + 4));     //b
+            buff[i + 1] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i * 2 + 2)); //g
+            buff[i + 2] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i * 2));     //r
+            buff[i + 3] = DownScaleFrom16BitTo8Bit(BitConverter.ToUInt16(imageData, i * 2 + 6)); //a
         }
         return true;
     }
 
-    private bool UnpackCrunch(byte[] image_data, out byte[] result)
+    private bool UnpackCrunch(byte[] imageData, out byte[] result)
     {
-        if (version[0] > 2017 || (version[0] == 2017 && version[1] >= 3) //2017.3 and up
+        if (m_Version[0] > 2017 || (m_Version[0] == 2017 && m_Version[1] >= 3) //2017.3 and up
                               || m_TextureFormat == TextureFormat.ETC_RGB4Crunched
                               || m_TextureFormat == TextureFormat.ETC2_RGBA8Crunched)
         {
-            result = TextureDecoder.UnpackUnityCrunch(image_data);
+            result = TextureDecoder.UnpackUnityCrunch(imageData);
         }
         else
         {
-            result = TextureDecoder.UnpackCrunch(image_data);
+            result = TextureDecoder.UnpackCrunch(imageData);
         }
-        if (result != null)
-        {
-            return true;
-        }
-        return false;
+
+        return result != null;
     }
 }

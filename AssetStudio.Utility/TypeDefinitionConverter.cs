@@ -9,17 +9,17 @@ namespace AssetStudio.Utility;
 
 public class TypeDefinitionConverter
 {
-    private readonly TypeDefinition TypeDef;
-    private readonly TypeResolver TypeResolver;
-    private readonly SerializedTypeHelper Helper;
-    private readonly int Indent;
+    private readonly TypeDefinition m_TypeDef;
+    private readonly TypeResolver m_TypeResolver;
+    private readonly SerializedTypeHelper m_Helper;
+    private readonly int m_Indent;
 
     public TypeDefinitionConverter(TypeDefinition typeDef, SerializedTypeHelper helper, int indent)
     {
-        TypeDef = typeDef;
-        TypeResolver = new TypeResolver(null);
-        Helper = helper;
-        Indent = indent;
+        m_TypeDef = typeDef;
+        m_TypeResolver = new TypeResolver(null);
+        m_Helper = helper;
+        m_Indent = indent;
     }
 
     public List<TypeTreeNode> ConvertToTypeTreeNodes()
@@ -27,13 +27,12 @@ public class TypeDefinitionConverter
         var nodes = new List<TypeTreeNode>();
 
         var baseTypes = new Stack<TypeReference>();
-        var lastBaseType = TypeDef.BaseType;
+        var lastBaseType = m_TypeDef.BaseType;
         while (!UnitySerializationLogic.IsNonSerialized(lastBaseType))
         {
-            var genericInstanceType = lastBaseType as GenericInstanceType;
-            if (genericInstanceType != null)
+            if (lastBaseType is GenericInstanceType genericInstanceType)
             {
-                TypeResolver.Add(genericInstanceType);
+                m_TypeResolver.Add(genericInstanceType);
             }
             baseTypes.Push(lastBaseType);
             lastBaseType = lastBaseType.Resolve().BaseType;
@@ -44,16 +43,15 @@ public class TypeDefinitionConverter
             var typeDefinition = typeReference.Resolve();
             foreach (var fieldDefinition in typeDefinition.Fields.Where(WillUnitySerialize))
             {
-                if (!IsHiddenByParentClass(baseTypes, fieldDefinition, TypeDef))
+                if (!IsHiddenByParentClass(baseTypes, fieldDefinition, m_TypeDef))
                 {
                     nodes.AddRange(ProcessingFieldRef(ResolveGenericFieldReference(fieldDefinition)));
                 }
             }
 
-            var genericInstanceType = typeReference as GenericInstanceType;
-            if (genericInstanceType != null)
+            if (typeReference is GenericInstanceType genericInstanceType)
             {
-                TypeResolver.Remove(genericInstanceType);
+                m_TypeResolver.Remove(genericInstanceType);
             }
         }
         foreach (var field in FilteredFields())
@@ -68,7 +66,7 @@ public class TypeDefinitionConverter
     {
         try
         {
-            var resolvedFieldType = TypeResolver.Resolve(fieldDefinition.FieldType);
+            var resolvedFieldType = m_TypeResolver.Resolve(fieldDefinition.FieldType);
             if (UnitySerializationLogic.ShouldNotTryToResolve(resolvedFieldType))
             {
                 return false;
@@ -80,11 +78,11 @@ public class TypeDefinitionConverter
                     return false;
                 }
             }
-            return UnitySerializationLogic.WillUnitySerialize(fieldDefinition, TypeResolver);
+            return UnitySerializationLogic.WillUnitySerialize(fieldDefinition, m_TypeResolver);
         }
         catch (Exception ex)
         {
-            throw new Exception(string.Format("Exception while processing {0} {1}, error {2}", fieldDefinition.FieldType.FullName, fieldDefinition.FullName, ex.Message));
+            throw new Exception($"Exception while processing {fieldDefinition.FieldType.FullName} {fieldDefinition.FullName}, error {ex.Message}");
         }
     }
 
@@ -95,7 +93,7 @@ public class TypeDefinitionConverter
 
     private IEnumerable<FieldDefinition> FilteredFields()
     {
-        return TypeDef.Fields.Where(WillUnitySerialize).Where(f =>
+        return m_TypeDef.Fields.Where(WillUnitySerialize).Where(f =>
             UnitySerializationLogic.IsSupportedCollection(f.FieldType) ||
             !f.FieldType.IsGenericInstance ||
             UnitySerializationLogic.ShouldImplementIDeserializable(f.FieldType.Resolve()));
@@ -104,7 +102,7 @@ public class TypeDefinitionConverter
     private FieldReference ResolveGenericFieldReference(FieldReference fieldRef)
     {
         var field = new FieldReference(fieldRef.Name, fieldRef.FieldType, ResolveDeclaringType(fieldRef.DeclaringType));
-        return TypeDef.Module.ImportReference(field);
+        return m_TypeDef.Module.ImportReference(field);
     }
 
     private TypeReference ResolveDeclaringType(TypeReference declaringType)
@@ -119,13 +117,13 @@ public class TypeDefinitionConverter
         {
             genericInstanceType.GenericArguments.Add(genericParameter);
         }
-        return TypeResolver.Resolve(genericInstanceType);
+        return m_TypeResolver.Resolve(genericInstanceType);
     }
 
     private List<TypeTreeNode> ProcessingFieldRef(FieldReference fieldDef)
     {
-        var typeRef = TypeResolver.Resolve(fieldDef.FieldType);
-        return TypeRefToTypeTreeNodes(typeRef, fieldDef.Name, Indent, false);
+        var typeRef = m_TypeResolver.Resolve(fieldDef.FieldType);
+        return TypeRefToTypeTreeNodes(typeRef, fieldDef.Name, m_Indent, false);
     }
 
     private static bool IsStruct(TypeReference typeRef)
@@ -163,7 +161,7 @@ public class TypeDefinitionConverter
     {
         var align = false;
 
-        if (!IsStruct(TypeDef) || !UnityEngineTypePredicates.IsUnityEngineValueType(TypeDef))
+        if (!IsStruct(m_TypeDef) || !UnityEngineTypePredicates.IsUnityEngineValueType(m_TypeDef))
         {
             if (IsStruct(typeRef) || RequiresAlignment(typeRef))
             {
@@ -224,7 +222,7 @@ public class TypeDefinitionConverter
         }
         else if (IsSystemString(typeRef))
         {
-            Helper.AddString(nodes, name, indent);
+            m_Helper.AddString(nodes, name, indent);
         }
         else if (IsEnum(typeRef))
         {
@@ -234,47 +232,47 @@ public class TypeDefinitionConverter
         {
             var elementRef = CecilUtils.ElementTypeOfCollection(typeRef);
             nodes.Add(new TypeTreeNode(typeRef.Name, name, indent, align));
-            Helper.AddArray(nodes, indent + 1);
+            m_Helper.AddArray(nodes, indent + 1);
             nodes.AddRange(TypeRefToTypeTreeNodes(elementRef, "data", indent + 2, true));
         }
         else if (typeRef.IsArray)
         {
             var elementRef = typeRef.GetElementType();
             nodes.Add(new TypeTreeNode(typeRef.Name, name, indent, align));
-            Helper.AddArray(nodes, indent + 1);
+            m_Helper.AddArray(nodes, indent + 1);
             nodes.AddRange(TypeRefToTypeTreeNodes(elementRef, "data", indent + 2, true));
         }
         else if (UnityEngineTypePredicates.IsUnityEngineObject(typeRef))
         {
-            Helper.AddPPtr(nodes, typeRef.Name, name, indent);
+            m_Helper.AddPPtr(nodes, typeRef.Name, name, indent);
         }
         else if (UnityEngineTypePredicates.IsSerializableUnityClass(typeRef) || UnityEngineTypePredicates.IsSerializableUnityStruct(typeRef))
         {
             switch (typeRef.FullName)
             {
                 case "UnityEngine.AnimationCurve":
-                    Helper.AddAnimationCurve(nodes, name, indent);
+                    m_Helper.AddAnimationCurve(nodes, name, indent);
                     break;
                 case "UnityEngine.Gradient":
-                    Helper.AddGradient(nodes, name, indent);
+                    m_Helper.AddGradient(nodes, name, indent);
                     break;
                 case "UnityEngine.GUIStyle":
-                    Helper.AddGUIStyle(nodes, name, indent);
+                    m_Helper.AddGUIStyle(nodes, name, indent);
                     break;
                 case "UnityEngine.RectOffset":
-                    Helper.AddRectOffset(nodes, name, indent);
+                    m_Helper.AddRectOffset(nodes, name, indent);
                     break;
                 case "UnityEngine.Color32":
-                    Helper.AddColor32(nodes, name, indent);
+                    m_Helper.AddColor32(nodes, name, indent);
                     break;
                 case "UnityEngine.Matrix4x4":
-                    Helper.AddMatrix4x4(nodes, name, indent);
+                    m_Helper.AddMatrix4x4(nodes, name, indent);
                     break;
                 case "UnityEngine.Rendering.SphericalHarmonicsL2":
-                    Helper.AddSphericalHarmonicsL2(nodes, name, indent);
+                    m_Helper.AddSphericalHarmonicsL2(nodes, name, indent);
                     break;
                 case "UnityEngine.PropertyName":
-                    Helper.AddPropertyName(nodes, name, indent);
+                    m_Helper.AddPropertyName(nodes, name, indent);
                     break;
             }
         }
@@ -282,7 +280,7 @@ public class TypeDefinitionConverter
         {
             nodes.Add(new TypeTreeNode(typeRef.Name, name, indent, align));
             var typeDef = typeRef.Resolve();
-            var typeDefinitionConverter = new TypeDefinitionConverter(typeDef, Helper, indent + 1);
+            var typeDefinitionConverter = new TypeDefinitionConverter(typeDef, m_Helper, indent + 1);
             nodes.AddRange(typeDefinitionConverter.ConvertToTypeTreeNodes());
         }
 

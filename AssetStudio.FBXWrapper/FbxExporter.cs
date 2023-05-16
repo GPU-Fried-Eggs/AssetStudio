@@ -6,34 +6,33 @@ namespace AssetStudio.FBXWrapper;
 
 internal sealed class FbxExporter : IDisposable
 {
+    private readonly FbxExporterContext m_Context;
 
-    private FbxExporterContext _context;
-
-    private readonly string _fileName;
-    private readonly IImported _imported;
-    private readonly bool _allNodes;
-    private readonly bool _exportSkins;
-    private readonly bool _castToBone;
-    private readonly float _boneSize;
-    private readonly bool _exportAllUvsAsDiffuseMaps;
-    private readonly float _scaleFactor;
-    private readonly int _versionIndex;
-    private readonly bool _isAscii;
+    private readonly string m_FileName;
+    private readonly IImported m_Imported;
+    private readonly bool m_AllNodes;
+    private readonly bool m_ExportSkins;
+    private readonly bool m_CastToBone;
+    private readonly float m_BoneSize;
+    private readonly bool m_ExportAllUvsAsDiffuseMaps;
+    private readonly float m_ScaleFactor;
+    private readonly int m_VersionIndex;
+    private readonly bool m_IsAscii;
 
     internal FbxExporter(string fileName, IImported imported, bool allNodes, bool exportSkins, bool castToBone, float boneSize, bool exportAllUvsAsDiffuseMaps, float scaleFactor, int versionIndex, bool isAscii)
     {
-        _context = new FbxExporterContext();
+        m_Context = new FbxExporterContext();
 
-        _fileName = fileName;
-        _imported = imported;
-        _allNodes = allNodes;
-        _exportSkins = exportSkins;
-        _castToBone = castToBone;
-        _boneSize = boneSize;
-        _exportAllUvsAsDiffuseMaps = exportAllUvsAsDiffuseMaps;
-        _scaleFactor = scaleFactor;
-        _versionIndex = versionIndex;
-        _isAscii = isAscii;
+        m_FileName = fileName;
+        m_Imported = imported;
+        m_AllNodes = allNodes;
+        m_ExportSkins = exportSkins;
+        m_CastToBone = castToBone;
+        m_BoneSize = boneSize;
+        m_ExportAllUvsAsDiffuseMaps = exportAllUvsAsDiffuseMaps;
+        m_ScaleFactor = scaleFactor;
+        m_VersionIndex = versionIndex;
+        m_IsAscii = isAscii;
     }
 
     ~FbxExporter()
@@ -43,10 +42,7 @@ internal sealed class FbxExporter : IDisposable
 
     public void Dispose()
     {
-        if (IsDisposed)
-        {
-            return;
-        }
+        if (IsDisposed) return;
 
         Dispose(true);
         GC.SuppressFinalize(this);
@@ -56,25 +52,22 @@ internal sealed class FbxExporter : IDisposable
 
     private void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            _context.Dispose();
-        }
+        if (disposing) m_Context.Dispose();
 
         IsDisposed = true;
     }
 
     internal void Initialize()
     {
-        var is60Fps = _imported.AnimationList.Count > 0 && _imported.AnimationList[0].SampleRate.Equals(60.0f);
+        var is60Fps = m_Imported.AnimationList.Count > 0 && m_Imported.AnimationList[0].SampleRate.Equals(60.0f);
 
-        _context.Initialize(_fileName, _scaleFactor, _versionIndex, _isAscii, is60Fps);
+        m_Context.Initialize(m_FileName, m_ScaleFactor, m_VersionIndex, m_IsAscii, is60Fps);
 
-        if (!_allNodes)
+        if (!m_AllNodes)
         {
             var framePaths = SearchHierarchy();
 
-            _context.SetFramePaths(framePaths);
+            m_Context.SetFramePaths(framePaths);
         }
     }
 
@@ -84,17 +77,17 @@ internal sealed class FbxExporter : IDisposable
 
         ExportRootFrame(meshFrames);
 
-        if (_imported.MeshList != null)
+        if (m_Imported.MeshList != null)
         {
             SetJointsFromImportedMeshes();
 
             PrepareMaterials();
 
-            ExportMeshFrames(_imported.RootFrame, meshFrames);
+            ExportMeshFrames(m_Imported.RootFrame, meshFrames);
         }
         else
         {
-            SetJointsNode(_imported.RootFrame, null, true);
+            SetJointsNode(m_Imported.RootFrame, null, true);
         }
 
 
@@ -114,36 +107,33 @@ internal sealed class FbxExporter : IDisposable
 
     private void ExportMorphs()
     {
-        _context.ExportMorphs(_imported.RootFrame, _imported.MorphList);
+        m_Context.ExportMorphs(m_Imported.RootFrame, m_Imported.MorphList);
     }
 
     private void ExportAnimations(bool eulerFilter, float filterPrecision)
     {
-        _context.ExportAnimations(_imported.RootFrame, _imported.AnimationList, eulerFilter, filterPrecision);
+        m_Context.ExportAnimations(m_Imported.RootFrame, m_Imported.AnimationList, eulerFilter, filterPrecision);
     }
 
     private void ExportRootFrame(List<ImportedFrame> meshFrames)
     {
-        _context.ExportFrame(_imported.MeshList, meshFrames, _imported.RootFrame);
+        m_Context.ExportFrame(m_Imported.MeshList, meshFrames, m_Imported.RootFrame);
     }
 
     private void ExportScene()
     {
-        _context.ExportScene();
+        m_Context.ExportScene();
     }
 
     private void SetJointsFromImportedMeshes()
     {
-        if (!_exportSkins)
-        {
-            return;
-        }
+        if (!m_ExportSkins) return;
 
-        Debug.Assert(_imported.MeshList != null);
+        Debug.Assert(m_Imported.MeshList != null);
 
         var bonePaths = new HashSet<string>();
 
-        foreach (var mesh in _imported.MeshList)
+        foreach (var mesh in m_Imported.MeshList)
         {
             var boneList = mesh.BoneList;
 
@@ -156,37 +146,34 @@ internal sealed class FbxExporter : IDisposable
             }
         }
 
-        SetJointsNode(_imported.RootFrame, bonePaths, _castToBone);
+        SetJointsNode(m_Imported.RootFrame, bonePaths, m_CastToBone);
     }
 
-    private void SetJointsNode(ImportedFrame rootFrame, HashSet<string> bonePaths, bool castToBone)
+    private void SetJointsNode(ImportedFrame rootFrame, HashSet<string>? bonePaths, bool castToBone)
     {
-        _context.SetJointsNode(rootFrame, bonePaths, castToBone, _boneSize);
+        m_Context.SetJointsNode(rootFrame, bonePaths, castToBone, m_BoneSize);
     }
 
     private void PrepareMaterials()
     {
-        _context.PrepareMaterials(_imported.MaterialList.Count, _imported.TextureList.Count);
+        m_Context.PrepareMaterials(m_Imported.MaterialList.Count, m_Imported.TextureList.Count);
     }
 
     private void ExportMeshFrames(ImportedFrame rootFrame, List<ImportedFrame> meshFrames)
     {
         foreach (var meshFrame in meshFrames)
         {
-            _context.ExportMeshFromFrame(rootFrame, meshFrame, _imported.MeshList, _imported.MaterialList, _imported.TextureList, _exportSkins, _exportAllUvsAsDiffuseMaps);
+            m_Context.ExportMeshFromFrame(rootFrame, meshFrame, m_Imported.MeshList, m_Imported.MaterialList, m_Imported.TextureList, m_ExportSkins, m_ExportAllUvsAsDiffuseMaps);
         }
     }
 
-    private HashSet<string> SearchHierarchy()
+    private HashSet<string>? SearchHierarchy()
     {
-        if (_imported.MeshList == null || _imported.MeshList.Count == 0)
-        {
-            return null;
-        }
+        if (m_Imported.MeshList == null || m_Imported.MeshList.Count == 0) return null;
 
         var exportFrames = new HashSet<string>();
 
-        SearchHierarchy(_imported.RootFrame, _imported.MeshList, exportFrames);
+        SearchHierarchy(m_Imported.RootFrame, m_Imported.MeshList, exportFrames);
 
         return exportFrames;
     }
@@ -239,5 +226,4 @@ internal sealed class FbxExporter : IDisposable
             }
         }
     }
-
 }

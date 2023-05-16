@@ -10,7 +10,7 @@ partial class FbxExporterContext
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
     private static extern IntPtr AsFbxCreateContext();
 
-    private static bool AsFbxInitializeContext(IntPtr context, string fileName, float scaleFactor, int versionIndex, bool isAscii, bool is60Fps, out string errorMessage)
+    private static bool AsFbxInitializeContext(IntPtr context, string fileName, float scaleFactor, int versionIndex, bool isAscii, bool is60Fps, out string? errorMessage)
     {
         bool b;
         IntPtr pErrMsg;
@@ -65,7 +65,7 @@ partial class FbxExporterContext
             {
                 foreach (var path in utf8Paths)
                 {
-                    path?.Dispose();
+                    path.Dispose();
                 }
             }
         }
@@ -82,13 +82,9 @@ partial class FbxExporterContext
 
     private static IntPtr AsFbxExportSingleFrame(IntPtr context, IntPtr parentNode, string framePath, string frameName, in Vector3 localPosition, in Vector3 localRotation, in Vector3 localScale)
     {
-        using (var framePathUtf8 = new Utf8StringHandle(framePath))
-        {
-            using (var frameNameUtf8 = new Utf8StringHandle(frameName))
-            {
-                return AsFbxExportSingleFrame(context, parentNode, framePathUtf8.DangerousGetHandle(), frameNameUtf8.DangerousGetHandle(), localPosition.X, localPosition.Y, localPosition.Z, localRotation.X, localRotation.Y, localRotation.Z, localScale.X, localScale.Y, localScale.Z);
-            }
-        }
+        using var framePathUtf8 = new Utf8StringHandle(framePath);
+        using var frameNameUtf8 = new Utf8StringHandle(frameName);
+        return AsFbxExportSingleFrame(context, parentNode, framePathUtf8.DangerousGetHandle(), frameNameUtf8.DangerousGetHandle(), localPosition.X, localPosition.Y, localPosition.Z, localRotation.X, localRotation.Y, localRotation.Z, localScale.X, localScale.Y, localScale.Z);
     }
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
@@ -108,10 +104,8 @@ partial class FbxExporterContext
 
     private static IntPtr AsFbxCreateTexture(IntPtr context, string matTexName)
     {
-        using (var matTexNameUtf8 = new Utf8StringHandle(matTexName))
-        {
-            return AsFbxCreateTexture(context, matTexNameUtf8.DangerousGetHandle());
-        }
+        using var matTexNameUtf8 = new Utf8StringHandle(matTexName);
+        return AsFbxCreateTexture(context, matTexNameUtf8.DangerousGetHandle());
     }
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
@@ -158,10 +152,8 @@ partial class FbxExporterContext
 
     private static IntPtr AsFbxCreateMaterial(IntPtr pContext, string matName, in Color diffuse, in Color ambient, in Color emissive, in Color specular, in Color reflection, float shininess, float transparency)
     {
-        using (var matNameUtf8 = new Utf8StringHandle(matName))
-        {
-            return AsFbxCreateMaterial(pContext, matNameUtf8.DangerousGetHandle(), diffuse.R, diffuse.G, diffuse.B, ambient.R, ambient.G, ambient.B, emissive.R, emissive.G, emissive.B, specular.R, specular.G, specular.B, reflection.R, reflection.G, reflection.B, shininess, transparency);
-        }
+        using var matNameUtf8 = new Utf8StringHandle(matName);
+        return AsFbxCreateMaterial(pContext, matNameUtf8.DangerousGetHandle(), diffuse.R, diffuse.G, diffuse.B, ambient.R, ambient.G, ambient.B, emissive.R, emissive.G, emissive.B, specular.R, specular.G, specular.B, reflection.R, reflection.G, reflection.B, shininess, transparency);
     }
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
@@ -211,7 +203,7 @@ partial class FbxExporterContext
     private static extern bool FbxClusterArray_HasItemAt(IntPtr pClusterArray, int index);
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
-    private unsafe static extern void AsFbxMeshSkinAddCluster(IntPtr pSkinContext, IntPtr pClusterArray, int index, float* pBoneMatrix);
+    private static extern unsafe void AsFbxMeshSkinAddCluster(IntPtr pSkinContext, IntPtr pClusterArray, int index, float* pBoneMatrix);
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
     private static extern void AsFbxMeshAddDeformer(IntPtr pSkinContext, IntPtr pMesh);
@@ -224,10 +216,8 @@ partial class FbxExporterContext
 
     private static void AsFbxAnimPrepareStackAndLayer(IntPtr pContext, IntPtr pAnimContext, string takeName)
     {
-        using (var takeNameUtf8 = new Utf8StringHandle(takeName))
-        {
-            AsFbxAnimPrepareStackAndLayer(pContext, pAnimContext, takeNameUtf8.DangerousGetHandle());
-        }
+        using var takeNameUtf8 = new Utf8StringHandle(takeName);
+        AsFbxAnimPrepareStackAndLayer(pContext, pAnimContext, takeNameUtf8.DangerousGetHandle());
     }
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
@@ -259,10 +249,8 @@ partial class FbxExporterContext
 
     private static bool AsFbxAnimIsBlendShapeChannelMatch(IntPtr pAnimContext, int channelIndex, string channelName)
     {
-        using (var channelNameUtf8 = new Utf8StringHandle(channelName))
-        {
-            return AsFbxAnimIsBlendShapeChannelMatch(pAnimContext, channelIndex, channelNameUtf8.DangerousGetHandle());
-        }
+        using var channelNameUtf8 = new Utf8StringHandle(channelName);
+        return AsFbxAnimIsBlendShapeChannelMatch(pAnimContext, channelIndex, channelNameUtf8.DangerousGetHandle());
     }
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
@@ -289,10 +277,8 @@ partial class FbxExporterContext
 
     private static void AsFbxMorphAddBlendShapeChannel(IntPtr pContext, IntPtr pMorphContext, string channelName)
     {
-        using (var channelNameUtf8 = new Utf8StringHandle(channelName))
-        {
-            AsFbxMorphAddBlendShapeChannel(pContext, pMorphContext, channelNameUtf8.DangerousGetHandle());
-        }
+        using var channelNameUtf8 = new Utf8StringHandle(channelName);
+        AsFbxMorphAddBlendShapeChannel(pContext, pMorphContext, channelNameUtf8.DangerousGetHandle());
     }
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
@@ -300,10 +286,8 @@ partial class FbxExporterContext
 
     private static void AsFbxMorphAddBlendShapeChannelShape(IntPtr pContext, IntPtr pMorphContext, float weight, string shapeName)
     {
-        using (var shapeNameUtf8 = new Utf8StringHandle(shapeName))
-        {
-            AsFbxMorphAddBlendShapeChannelShape(pContext, pMorphContext, weight, shapeNameUtf8.DangerousGetHandle());
-        }
+        using var shapeNameUtf8 = new Utf8StringHandle(shapeName);
+        AsFbxMorphAddBlendShapeChannelShape(pContext, pMorphContext, weight, shapeNameUtf8.DangerousGetHandle());
     }
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
@@ -320,5 +304,4 @@ partial class FbxExporterContext
 
     [DllImport(FbxDll.DllName, CallingConvention = CallingConvention.Winapi)]
     private static extern void AsFbxMorphSetBlendShapeVertexNormal(IntPtr pMorphContext, uint index, float x, float y, float z);
-
 }

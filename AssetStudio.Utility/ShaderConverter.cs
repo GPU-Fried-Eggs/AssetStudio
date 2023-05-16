@@ -16,12 +16,10 @@ public static class ShaderConverter
         {
             var decompressedBytes = new byte[shader.decompressedSize];
             LZ4Codec.Decode(shader.m_SubProgramBlob, decompressedBytes);
-            using (var blobReader = new BinaryReader(new MemoryStream(decompressedBytes)))
-            {
-                var program = new ShaderProgram(blobReader, shader.version);
-                program.Read(blobReader, 0);
-                return header + program.Export(Encoding.UTF8.GetString(shader.m_Script));
-            }
+            using var blobReader = new BinaryReader(new MemoryStream(decompressedBytes));
+            var program = new ShaderProgram(blobReader, shader.version);
+            program.Read(blobReader, 0);
+            return header + program.Export(Encoding.UTF8.GetString(shader.m_Script));
         }
 
         if (shader.compressedBlob != null) //5.5 and up
@@ -45,69 +43,67 @@ public static class ShaderConverter
                 var decompressedLength = shader.decompressedLengths[i][j];
                 var decompressedBytes = new byte[decompressedLength];
                 LZ4Codec.Decode(shader.compressedBlob, (int)offset, (int)compressedLength, decompressedBytes, 0, (int)decompressedLength);
-                using (var blobReader = new BinaryReader(new MemoryStream(decompressedBytes)))
+                using var blobReader = new BinaryReader(new MemoryStream(decompressedBytes));
+                if (j == 0)
                 {
-                    if (j == 0)
-                    {
-                        shaderPrograms[i] = new ShaderProgram(blobReader, shader.version);
-                    }
-                    shaderPrograms[i].Read(blobReader, j);
+                    shaderPrograms[i] = new ShaderProgram(blobReader, shader.version);
                 }
+                shaderPrograms[i].Read(blobReader, j);
             }
         }
 
         return ConvertSerializedShader(shader.m_ParsedForm, shader.platforms, shaderPrograms);
     }
 
-    private static string ConvertSerializedShader(SerializedShader m_ParsedForm, ShaderCompilerPlatform[] platforms, ShaderProgram[] shaderPrograms)
+    private static string ConvertSerializedShader(SerializedShader parsedForm, ShaderCompilerPlatform[] platforms, ShaderProgram[] shaderPrograms)
     {
         var sb = new StringBuilder();
-        sb.Append($"Shader \"{m_ParsedForm.m_Name}\" {{\n");
+        sb.Append($"Shader \"{parsedForm.m_Name}\" {{\n");
 
-        sb.Append(ConvertSerializedProperties(m_ParsedForm.m_PropInfo));
+        sb.Append(ConvertSerializedProperties(parsedForm.m_PropInfo));
 
-        foreach (var m_SubShader in m_ParsedForm.m_SubShaders)
+        foreach (var subShader in parsedForm.m_SubShaders)
         {
-            sb.Append(ConvertSerializedSubShader(m_SubShader, platforms, shaderPrograms));
+            sb.Append(ConvertSerializedSubShader(subShader, platforms, shaderPrograms));
         }
 
-        if (!string.IsNullOrEmpty(m_ParsedForm.m_FallbackName))
+        if (!string.IsNullOrEmpty(parsedForm.m_FallbackName))
         {
-            sb.Append($"Fallback \"{m_ParsedForm.m_FallbackName}\"\n");
+            sb.Append($"Fallback \"{parsedForm.m_FallbackName}\"\n");
         }
 
-        if (!string.IsNullOrEmpty(m_ParsedForm.m_CustomEditorName))
+        if (!string.IsNullOrEmpty(parsedForm.m_CustomEditorName))
         {
-            sb.Append($"CustomEditor \"{m_ParsedForm.m_CustomEditorName}\"\n");
+            sb.Append($"CustomEditor \"{parsedForm.m_CustomEditorName}\"\n");
         }
 
         sb.Append("}");
         return sb.ToString();
     }
 
-    private static string ConvertSerializedSubShader(SerializedSubShader m_SubShader, ShaderCompilerPlatform[] platforms, ShaderProgram[] shaderPrograms)
+    private static string ConvertSerializedSubShader(SerializedSubShader subShader, ShaderCompilerPlatform[] platforms, ShaderProgram[] shaderPrograms)
     {
         var sb = new StringBuilder();
         sb.Append("SubShader {\n");
-        if (m_SubShader.m_LOD != 0)
+        if (subShader.m_LOD != 0)
         {
-            sb.Append($" LOD {m_SubShader.m_LOD}\n");
+            sb.Append($" LOD {subShader.m_LOD}\n");
         }
 
-        sb.Append(ConvertSerializedTagMap(m_SubShader.m_Tags, 1));
+        sb.Append(ConvertSerializedTagMap(subShader.m_Tags, 1));
 
-        foreach (var m_Passe in m_SubShader.m_Passes)
+        foreach (var passe in subShader.m_Passes)
         {
-            sb.Append(ConvertSerializedPass(m_Passe, platforms, shaderPrograms));
+            sb.Append(ConvertSerializedPass(passe, platforms, shaderPrograms));
         }
         sb.Append("}\n");
         return sb.ToString();
     }
 
-    private static string ConvertSerializedPass(SerializedPass m_Passe, ShaderCompilerPlatform[] platforms, ShaderProgram[] shaderPrograms)
+    private static string ConvertSerializedPass(SerializedPass passe, ShaderCompilerPlatform[] platforms, ShaderProgram[] shaderPrograms)
     {
         var sb = new StringBuilder();
-        switch (m_Passe.m_Type)
+        switch (passe.m_Type)
         {
             case PassType.Normal:
                 sb.Append(" Pass ");
@@ -119,64 +115,64 @@ public static class ShaderConverter
                 sb.Append(" GrabPass ");
                 break;
         }
-        if (m_Passe.m_Type == PassType.Use)
+        if (passe.m_Type == PassType.Use)
         {
-            sb.Append($"\"{m_Passe.m_UseName}\"\n");
+            sb.Append($"\"{passe.m_UseName}\"\n");
         }
         else
         {
             sb.Append("{\n");
 
-            if (m_Passe.m_Type == PassType.Grab)
+            if (passe.m_Type == PassType.Grab)
             {
-                if (!string.IsNullOrEmpty(m_Passe.m_TextureName))
+                if (!string.IsNullOrEmpty(passe.m_TextureName))
                 {
-                    sb.Append($"  \"{m_Passe.m_TextureName}\"\n");
+                    sb.Append($"  \"{passe.m_TextureName}\"\n");
                 }
             }
             else
             {
-                sb.Append(ConvertSerializedShaderState(m_Passe.m_State));
+                sb.Append(ConvertSerializedShaderState(passe.m_State));
 
-                if (m_Passe.progVertex.m_SubPrograms.Length > 0)
+                if (passe.progVertex.m_SubPrograms.Length > 0)
                 {
                     sb.Append("Program \"vp\" {\n");
-                    sb.Append(ConvertSerializedSubPrograms(m_Passe.progVertex.m_SubPrograms, platforms, shaderPrograms));
+                    sb.Append(ConvertSerializedSubPrograms(passe.progVertex.m_SubPrograms, platforms, shaderPrograms));
                     sb.Append("}\n");
                 }
 
-                if (m_Passe.progFragment.m_SubPrograms.Length > 0)
+                if (passe.progFragment.m_SubPrograms.Length > 0)
                 {
                     sb.Append("Program \"fp\" {\n");
-                    sb.Append(ConvertSerializedSubPrograms(m_Passe.progFragment.m_SubPrograms, platforms, shaderPrograms));
+                    sb.Append(ConvertSerializedSubPrograms(passe.progFragment.m_SubPrograms, platforms, shaderPrograms));
                     sb.Append("}\n");
                 }
 
-                if (m_Passe.progGeometry.m_SubPrograms.Length > 0)
+                if (passe.progGeometry.m_SubPrograms.Length > 0)
                 {
                     sb.Append("Program \"gp\" {\n");
-                    sb.Append(ConvertSerializedSubPrograms(m_Passe.progGeometry.m_SubPrograms, platforms, shaderPrograms));
+                    sb.Append(ConvertSerializedSubPrograms(passe.progGeometry.m_SubPrograms, platforms, shaderPrograms));
                     sb.Append("}\n");
                 }
 
-                if (m_Passe.progHull.m_SubPrograms.Length > 0)
+                if (passe.progHull.m_SubPrograms.Length > 0)
                 {
                     sb.Append("Program \"hp\" {\n");
-                    sb.Append(ConvertSerializedSubPrograms(m_Passe.progHull.m_SubPrograms, platforms, shaderPrograms));
+                    sb.Append(ConvertSerializedSubPrograms(passe.progHull.m_SubPrograms, platforms, shaderPrograms));
                     sb.Append("}\n");
                 }
 
-                if (m_Passe.progDomain.m_SubPrograms.Length > 0)
+                if (passe.progDomain.m_SubPrograms.Length > 0)
                 {
                     sb.Append("Program \"dp\" {\n");
-                    sb.Append(ConvertSerializedSubPrograms(m_Passe.progDomain.m_SubPrograms, platforms, shaderPrograms));
+                    sb.Append(ConvertSerializedSubPrograms(passe.progDomain.m_SubPrograms, platforms, shaderPrograms));
                     sb.Append("}\n");
                 }
 
-                if (m_Passe.progRayTracing?.m_SubPrograms.Length > 0)
+                if (passe.progRayTracing?.m_SubPrograms.Length > 0)
                 {
                     sb.Append("Program \"rtp\" {\n");
-                    sb.Append(ConvertSerializedSubPrograms(m_Passe.progRayTracing.m_SubPrograms, platforms, shaderPrograms));
+                    sb.Append(ConvertSerializedSubPrograms(passe.progRayTracing.m_SubPrograms, platforms, shaderPrograms));
                     sb.Append("}\n");
                 }
             }
@@ -185,10 +181,10 @@ public static class ShaderConverter
         return sb.ToString();
     }
 
-    private static string ConvertSerializedSubPrograms(SerializedSubProgram[] m_SubPrograms, ShaderCompilerPlatform[] platforms, ShaderProgram[] shaderPrograms)
+    private static string ConvertSerializedSubPrograms(SerializedSubProgram[] serializedSubPrograms, ShaderCompilerPlatform[] platforms, ShaderProgram[] shaderPrograms)
     {
         var sb = new StringBuilder();
-        var groups = m_SubPrograms.GroupBy(x => x.m_BlobIndex);
+        var groups = serializedSubPrograms.GroupBy(x => x.m_BlobIndex);
         foreach (var group in groups)
         {
             var programs = group.GroupBy(x => x.m_GpuProgramType);
@@ -209,7 +205,7 @@ public static class ShaderConverter
                                 sb.Append($"hw_tier{subProgram.m_ShaderHardwareTier:00} ");
                             }
                             sb.Append("\" {\n");
-                            sb.Append(shaderPrograms[i].m_SubPrograms[subProgram.m_BlobIndex].Export());
+                            sb.Append(shaderPrograms[i].SubPrograms[subProgram.m_BlobIndex].Export());
                             sb.Append("\n}\n");
                         }
                         break;
@@ -220,36 +216,36 @@ public static class ShaderConverter
         return sb.ToString();
     }
 
-    private static string ConvertSerializedShaderState(SerializedShaderState m_State)
+    private static string ConvertSerializedShaderState(SerializedShaderState state)
     {
         var sb = new StringBuilder();
-        if (!string.IsNullOrEmpty(m_State.m_Name))
+        if (!string.IsNullOrEmpty(state.m_Name))
         {
-            sb.Append($"  Name \"{m_State.m_Name}\"\n");
+            sb.Append($"  Name \"{state.m_Name}\"\n");
         }
-        if (m_State.m_LOD != 0)
+        if (state.m_LOD != 0)
         {
-            sb.Append($"  LOD {m_State.m_LOD}\n");
+            sb.Append($"  LOD {state.m_LOD}\n");
         }
 
-        sb.Append(ConvertSerializedTagMap(m_State.m_Tags, 2));
+        sb.Append(ConvertSerializedTagMap(state.m_Tags, 2));
 
-        sb.Append(ConvertSerializedShaderRTBlendState(m_State.rtBlend, m_State.rtSeparateBlend));
+        sb.Append(ConvertSerializedShaderRTBlendState(state.rtBlend, state.rtSeparateBlend));
 
-        if (m_State.alphaToMask.val > 0f)
+        if (state.alphaToMask.val > 0f)
         {
             sb.Append("  AlphaToMask On\n");
         }
 
-        if (m_State.zClip?.val != 1f) //ZClip On
+        if (state.zClip?.val != 1f) //ZClip On
         {
             sb.Append("  ZClip Off\n");
         }
 
-        if (m_State.zTest.val != 4f) //ZTest LEqual
+        if (state.zTest.val != 4f) //ZTest LEqual
         {
             sb.Append("  ZTest ");
-            switch (m_State.zTest.val) //enum CompareFunction
+            switch (state.zTest.val) //enum CompareFunction
             {
                 case 0f: //kFuncDisabled
                     sb.Append("Off");
@@ -280,15 +276,15 @@ public static class ShaderConverter
             sb.Append("\n");
         }
 
-        if (m_State.zWrite.val != 1f) //ZWrite On
+        if (state.zWrite.val != 1f) //ZWrite On
         {
             sb.Append("  ZWrite Off\n");
         }
 
-        if (m_State.culling.val != 2f) //Cull Back
+        if (state.culling.val != 2f) //Cull Back
         {
             sb.Append("  Cull ");
-            switch (m_State.culling.val) //enum CullMode
+            switch (state.culling.val) //enum CullMode
             {
                 case 0f: //kCullOff
                     sb.Append("Off");
@@ -300,78 +296,78 @@ public static class ShaderConverter
             sb.Append("\n");
         }
 
-        if (m_State.offsetFactor.val != 0f || m_State.offsetUnits.val != 0f)
+        if (state.offsetFactor.val != 0f || state.offsetUnits.val != 0f)
         {
-            sb.Append($"  Offset {m_State.offsetFactor.val}, {m_State.offsetUnits.val}\n");
+            sb.Append($"  Offset {state.offsetFactor.val}, {state.offsetUnits.val}\n");
         }
 
-        if (m_State.stencilRef.val != 0f ||
-            m_State.stencilReadMask.val != 255f ||
-            m_State.stencilWriteMask.val != 255f ||
-            m_State.stencilOp.pass.val != 0f ||
-            m_State.stencilOp.fail.val != 0f ||
-            m_State.stencilOp.zFail.val != 0f ||
-            m_State.stencilOp.comp.val != 8f ||
-            m_State.stencilOpFront.pass.val != 0f ||
-            m_State.stencilOpFront.fail.val != 0f ||
-            m_State.stencilOpFront.zFail.val != 0f ||
-            m_State.stencilOpFront.comp.val != 8f ||
-            m_State.stencilOpBack.pass.val != 0f ||
-            m_State.stencilOpBack.fail.val != 0f ||
-            m_State.stencilOpBack.zFail.val != 0f ||
-            m_State.stencilOpBack.comp.val != 8f)
+        if (state.stencilRef.val != 0f ||
+            state.stencilReadMask.val != 255f ||
+            state.stencilWriteMask.val != 255f ||
+            state.stencilOp.pass.val != 0f ||
+            state.stencilOp.fail.val != 0f ||
+            state.stencilOp.zFail.val != 0f ||
+            state.stencilOp.comp.val != 8f ||
+            state.stencilOpFront.pass.val != 0f ||
+            state.stencilOpFront.fail.val != 0f ||
+            state.stencilOpFront.zFail.val != 0f ||
+            state.stencilOpFront.comp.val != 8f ||
+            state.stencilOpBack.pass.val != 0f ||
+            state.stencilOpBack.fail.val != 0f ||
+            state.stencilOpBack.zFail.val != 0f ||
+            state.stencilOpBack.comp.val != 8f)
         {
             sb.Append("  Stencil {\n");
-            if (m_State.stencilRef.val != 0f)
+            if (state.stencilRef.val != 0f)
             {
-                sb.Append($"   Ref {m_State.stencilRef.val}\n");
+                sb.Append($"   Ref {state.stencilRef.val}\n");
             }
-            if (m_State.stencilReadMask.val != 255f)
+            if (state.stencilReadMask.val != 255f)
             {
-                sb.Append($"   ReadMask {m_State.stencilReadMask.val}\n");
+                sb.Append($"   ReadMask {state.stencilReadMask.val}\n");
             }
-            if (m_State.stencilWriteMask.val != 255f)
+            if (state.stencilWriteMask.val != 255f)
             {
-                sb.Append($"   WriteMask {m_State.stencilWriteMask.val}\n");
+                sb.Append($"   WriteMask {state.stencilWriteMask.val}\n");
             }
-            if (m_State.stencilOp.pass.val != 0f ||
-                m_State.stencilOp.fail.val != 0f ||
-                m_State.stencilOp.zFail.val != 0f ||
-                m_State.stencilOp.comp.val != 8f)
+            if (state.stencilOp.pass.val != 0f ||
+                state.stencilOp.fail.val != 0f ||
+                state.stencilOp.zFail.val != 0f ||
+                state.stencilOp.comp.val != 8f)
             {
-                sb.Append(ConvertSerializedStencilOp(m_State.stencilOp, ""));
+                sb.Append(ConvertSerializedStencilOp(state.stencilOp, ""));
             }
-            if (m_State.stencilOpFront.pass.val != 0f ||
-                m_State.stencilOpFront.fail.val != 0f ||
-                m_State.stencilOpFront.zFail.val != 0f ||
-                m_State.stencilOpFront.comp.val != 8f)
+            if (state.stencilOpFront.pass.val != 0f ||
+                state.stencilOpFront.fail.val != 0f ||
+                state.stencilOpFront.zFail.val != 0f ||
+                state.stencilOpFront.comp.val != 8f)
             {
-                sb.Append(ConvertSerializedStencilOp(m_State.stencilOpFront, "Front"));
+                sb.Append(ConvertSerializedStencilOp(state.stencilOpFront, "Front"));
             }
-            if (m_State.stencilOpBack.pass.val != 0f ||
-                m_State.stencilOpBack.fail.val != 0f ||
-                m_State.stencilOpBack.zFail.val != 0f ||
-                m_State.stencilOpBack.comp.val != 8f)
+            if (state.stencilOpBack.pass.val != 0f ||
+                state.stencilOpBack.fail.val != 0f ||
+                state.stencilOpBack.zFail.val != 0f ||
+                state.stencilOpBack.comp.val != 8f)
             {
-                sb.Append(ConvertSerializedStencilOp(m_State.stencilOpBack, "Back"));
+                sb.Append(ConvertSerializedStencilOp(state.stencilOpBack, "Back"));
             }
             sb.Append("  }\n");
         }
 
-        if (m_State.fogMode != FogMode.Unknown ||
-            m_State.fogColor.x.val != 0f ||
-            m_State.fogColor.y.val != 0f ||
-            m_State.fogColor.z.val != 0f ||
-            m_State.fogColor.w.val != 0f ||
-            m_State.fogDensity.val != 0f ||
-            m_State.fogStart.val != 0f ||
-            m_State.fogEnd.val != 0f)
+        if (state.fogMode != FogMode.Unknown ||
+            state.fogColor.x.val != 0f ||
+            state.fogColor.y.val != 0f ||
+            state.fogColor.z.val != 0f ||
+            state.fogColor.w.val != 0f ||
+            state.fogDensity.val != 0f ||
+            state.fogStart.val != 0f ||
+            state.fogEnd.val != 0f)
         {
             sb.Append("  Fog {\n");
-            if (m_State.fogMode != FogMode.Unknown)
+            if (state.fogMode != FogMode.Unknown)
             {
                 sb.Append("   Mode ");
-                switch (m_State.fogMode)
+                switch (state.fogMode)
                 {
                     case FogMode.Disabled:
                         sb.Append("Off");
@@ -388,35 +384,35 @@ public static class ShaderConverter
                 }
                 sb.Append("\n");
             }
-            if (m_State.fogColor.x.val != 0f ||
-                m_State.fogColor.y.val != 0f ||
-                m_State.fogColor.z.val != 0f ||
-                m_State.fogColor.w.val != 0f)
+            if (state.fogColor.x.val != 0f ||
+                state.fogColor.y.val != 0f ||
+                state.fogColor.z.val != 0f ||
+                state.fogColor.w.val != 0f)
             {
                 sb.AppendFormat("   Color ({0},{1},{2},{3})\n",
-                    m_State.fogColor.x.val.ToString(CultureInfo.InvariantCulture),
-                    m_State.fogColor.y.val.ToString(CultureInfo.InvariantCulture),
-                    m_State.fogColor.z.val.ToString(CultureInfo.InvariantCulture),
-                    m_State.fogColor.w.val.ToString(CultureInfo.InvariantCulture));
+                    state.fogColor.x.val.ToString(CultureInfo.InvariantCulture),
+                    state.fogColor.y.val.ToString(CultureInfo.InvariantCulture),
+                    state.fogColor.z.val.ToString(CultureInfo.InvariantCulture),
+                    state.fogColor.w.val.ToString(CultureInfo.InvariantCulture));
             }
-            if (m_State.fogDensity.val != 0f)
+            if (state.fogDensity.val != 0f)
             {
-                sb.Append($"   Density {m_State.fogDensity.val.ToString(CultureInfo.InvariantCulture)}\n");
+                sb.Append($"   Density {state.fogDensity.val.ToString(CultureInfo.InvariantCulture)}\n");
             }
-            if (m_State.fogStart.val != 0f ||
-                m_State.fogEnd.val != 0f)
+            if (state.fogStart.val != 0f ||
+                state.fogEnd.val != 0f)
             {
-                sb.Append($"   Range {m_State.fogStart.val.ToString(CultureInfo.InvariantCulture)}, {m_State.fogEnd.val.ToString(CultureInfo.InvariantCulture)}\n");
+                sb.Append($"   Range {state.fogStart.val.ToString(CultureInfo.InvariantCulture)}, {state.fogEnd.val.ToString(CultureInfo.InvariantCulture)}\n");
             }
             sb.Append("  }\n");
         }
 
-        if (m_State.lighting)
+        if (state.lighting)
         {
-            sb.Append($"  Lighting {(m_State.lighting ? "On" : "Off")}\n");
+            sb.Append($"  Lighting {(state.lighting ? "On" : "Off")}\n");
         }
 
-        sb.Append($"  GpuProgramID {m_State.gpuProgramID}\n");
+        sb.Append($"  GpuProgramID {state.gpuProgramID}\n");
 
         return sb.ToString();
     }
@@ -635,14 +631,14 @@ public static class ShaderConverter
         }
     }
 
-    private static string ConvertSerializedTagMap(SerializedTagMap m_Tags, int intent)
+    private static string ConvertSerializedTagMap(SerializedTagMap tags, int intent)
     {
         var sb = new StringBuilder();
-        if (m_Tags.tags.Length > 0)
+        if (tags.tags.Length > 0)
         {
             sb.Append(new string(' ', intent));
             sb.Append("Tags { ");
-            foreach (var pair in m_Tags.tags)
+            foreach (var pair in tags.tags)
             {
                 sb.Append($"\"{pair.Key}\" = \"{pair.Value}\" ");
             }
@@ -651,11 +647,11 @@ public static class ShaderConverter
         return sb.ToString();
     }
 
-    private static string ConvertSerializedProperties(SerializedProperties m_PropInfo)
+    private static string ConvertSerializedProperties(SerializedProperties propInfo)
     {
         var sb = new StringBuilder();
         sb.Append("Properties {\n");
-        foreach (var m_Prop in m_PropInfo.m_Props)
+        foreach (var m_Prop in propInfo.m_Props)
         {
             sb.Append(ConvertSerializedProperty(m_Prop));
         }
@@ -663,16 +659,16 @@ public static class ShaderConverter
         return sb.ToString();
     }
 
-    private static string ConvertSerializedProperty(SerializedProperty m_Prop)
+    private static string ConvertSerializedProperty(SerializedProperty prop)
     {
         var sb = new StringBuilder();
-        foreach (var m_Attribute in m_Prop.m_Attributes)
+        foreach (var attribute in prop.m_Attributes)
         {
-            sb.Append($"[{m_Attribute}] ");
+            sb.Append($"[{attribute}] ");
         }
         //TODO Flag
-        sb.Append($"{m_Prop.m_Name} (\"{m_Prop.m_Description}\", ");
-        switch (m_Prop.m_Type)
+        sb.Append($"{prop.m_Name} (\"{prop.m_Description}\", ");
+        switch (prop.m_Type)
         {
             case SerializedPropertyType.Color:
                 sb.Append("Color");
@@ -684,10 +680,10 @@ public static class ShaderConverter
                 sb.Append("Float");
                 break;
             case SerializedPropertyType.Range:
-                sb.Append($"Range({m_Prop.m_DefValue[1]}, {m_Prop.m_DefValue[2]})");
+                sb.Append($"Range({prop.m_DefValue[1]}, {prop.m_DefValue[2]})");
                 break;
             case SerializedPropertyType.Texture:
-                switch (m_Prop.m_DefTexture.m_TexDim)
+                switch (prop.m_DefTexture.m_TexDim)
                 {
                     case TextureDimension.Any:
                         sb.Append("any");
@@ -711,18 +707,18 @@ public static class ShaderConverter
                 break;
         }
         sb.Append(") = ");
-        switch (m_Prop.m_Type)
+        switch (prop.m_Type)
         {
             case SerializedPropertyType.Color:
             case SerializedPropertyType.Vector:
-                sb.Append($"({m_Prop.m_DefValue[0]},{m_Prop.m_DefValue[1]},{m_Prop.m_DefValue[2]},{m_Prop.m_DefValue[3]})");
+                sb.Append($"({prop.m_DefValue[0]},{prop.m_DefValue[1]},{prop.m_DefValue[2]},{prop.m_DefValue[3]})");
                 break;
             case SerializedPropertyType.Float:
             case SerializedPropertyType.Range:
-                sb.Append(m_Prop.m_DefValue[0]);
+                sb.Append(prop.m_DefValue[0]);
                 break;
             case SerializedPropertyType.Texture:
-                sb.Append($"\"{m_Prop.m_DefTexture.m_DefaultName}\" {{ }}");
+                sb.Append($"\"{prop.m_DefTexture.m_DefaultName}\" {{ }}");
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
@@ -884,29 +880,29 @@ public class ShaderSubProgramEntry
 
 public class ShaderProgram
 {
-    public ShaderSubProgramEntry[] entries;
-    public ShaderSubProgram[] m_SubPrograms;
+    public ShaderSubProgramEntry[] Entries;
+    public ShaderSubProgram[] SubPrograms;
 
     public ShaderProgram(BinaryReader reader, int[] version)
     {
         var subProgramsCapacity = reader.ReadInt32();
-        entries = new ShaderSubProgramEntry[subProgramsCapacity];
+        Entries = new ShaderSubProgramEntry[subProgramsCapacity];
         for (int i = 0; i < subProgramsCapacity; i++)
         {
-            entries[i] = new ShaderSubProgramEntry(reader, version);
+            Entries[i] = new ShaderSubProgramEntry(reader, version);
         }
-        m_SubPrograms = new ShaderSubProgram[subProgramsCapacity];
+        SubPrograms = new ShaderSubProgram[subProgramsCapacity];
     }
 
     public void Read(BinaryReader reader, int segment)
     {
-        for (int i = 0; i < entries.Length; i++)
+        for (int i = 0; i < Entries.Length; i++)
         {
-            var entry = entries[i];
+            var entry = Entries[i];
             if (entry.Segment == segment)
             {
                 reader.BaseStream.Position = entry.Offset;
-                m_SubPrograms[i] = new ShaderSubProgram(reader);
+                SubPrograms[i] = new ShaderSubProgram(reader);
             }
         }
     }
@@ -916,7 +912,7 @@ public class ShaderProgram
         var evaluator = new MatchEvaluator(match =>
         {
             var index = int.Parse(match.Groups[1].Value);
-            return m_SubPrograms[index].Export();
+            return SubPrograms[index].Export();
         });
         shader = Regex.Replace(shader, "GpuProgramIndex (.+)", evaluator);
         return shader;
@@ -926,10 +922,10 @@ public class ShaderProgram
 public class ShaderSubProgram
 {
     private int m_Version;
-    public ShaderGpuProgramType m_ProgramType;
-    public string[] m_Keywords;
-    public string[] m_LocalKeywords;
-    public byte[] m_ProgramCode;
+    public ShaderGpuProgramType ProgramType;
+    public string[] Keywords;
+    public string[] LocalKeywords;
+    public byte[] ProgramCode;
 
     public ShaderSubProgram(BinaryReader reader)
     {
@@ -943,28 +939,28 @@ public class ShaderSubProgram
         //201806140 - Unity 2019.1~2021.1
         //202012090 - Unity 2021.2
         m_Version = reader.ReadInt32();
-        m_ProgramType = (ShaderGpuProgramType)reader.ReadInt32();
+        ProgramType = (ShaderGpuProgramType)reader.ReadInt32();
         reader.BaseStream.Position += 12;
         if (m_Version >= 201608170)
         {
             reader.BaseStream.Position += 4;
         }
-        var m_KeywordsSize = reader.ReadInt32();
-        m_Keywords = new string[m_KeywordsSize];
-        for (int i = 0; i < m_KeywordsSize; i++)
+        var keywordsSize = reader.ReadInt32();
+        Keywords = new string[keywordsSize];
+        for (int i = 0; i < keywordsSize; i++)
         {
-            m_Keywords[i] = reader.ReadAlignedString();
+            Keywords[i] = reader.ReadAlignedString();
         }
         if (m_Version >= 201806140 && m_Version < 202012090)
         {
-            var m_LocalKeywordsSize = reader.ReadInt32();
-            m_LocalKeywords = new string[m_LocalKeywordsSize];
-            for (int i = 0; i < m_LocalKeywordsSize; i++)
+            var localKeywordsSize = reader.ReadInt32();
+            LocalKeywords = new string[localKeywordsSize];
+            for (int i = 0; i < localKeywordsSize; i++)
             {
-                m_LocalKeywords[i] = reader.ReadAlignedString();
+                LocalKeywords[i] = reader.ReadAlignedString();
             }
         }
-        m_ProgramCode = reader.ReadUInt8Array();
+        ProgramCode = reader.ReadUInt8Array();
         reader.AlignStream();
 
         //TODO
@@ -973,19 +969,19 @@ public class ShaderSubProgram
     public string Export()
     {
         var sb = new StringBuilder();
-        if (m_Keywords.Length > 0)
+        if (Keywords.Length > 0)
         {
             sb.Append("Keywords { ");
-            foreach (string keyword in m_Keywords)
+            foreach (string keyword in Keywords)
             {
                 sb.Append($"\"{keyword}\" ");
             }
             sb.Append("}\n");
         }
-        if (m_LocalKeywords != null && m_LocalKeywords.Length > 0)
+        if (LocalKeywords != null && LocalKeywords.Length > 0)
         {
             sb.Append("Local Keywords { ");
-            foreach (string keyword in m_LocalKeywords)
+            foreach (string keyword in LocalKeywords)
             {
                 sb.Append($"\"{keyword}\" ");
             }
@@ -993,9 +989,9 @@ public class ShaderSubProgram
         }
 
         sb.Append("\"");
-        if (m_ProgramCode.Length > 0)
+        if (ProgramCode.Length > 0)
         {
-            switch (m_ProgramType)
+            switch (ProgramType)
             {
                 case ShaderGpuProgramType.GLLegacy:
                 case ShaderGpuProgramType.GLES31AEP:
@@ -1005,7 +1001,7 @@ public class ShaderSubProgram
                 case ShaderGpuProgramType.GLCore32:
                 case ShaderGpuProgramType.GLCore41:
                 case ShaderGpuProgramType.GLCore43:
-                    sb.Append(Encoding.UTF8.GetString(m_ProgramCode));
+                    sb.Append(Encoding.UTF8.GetString(ProgramCode));
                     break;
                 case ShaderGpuProgramType.DX9VertexSM20:
                 case ShaderGpuProgramType.DX9VertexSM30:
@@ -1042,7 +1038,7 @@ public class ShaderSubProgram
                 }
                 case ShaderGpuProgramType.MetalVS:
                 case ShaderGpuProgramType.MetalFS:
-                    using (var reader = new BinaryReader(new MemoryStream(m_ProgramCode)))
+                    using (var reader = new BinaryReader(new MemoryStream(ProgramCode)))
                     {
                         var fourCC = reader.ReadUInt32();
                         if (fourCC == 0xf00dcafe)
@@ -1058,7 +1054,7 @@ public class ShaderSubProgram
                 case ShaderGpuProgramType.SPIRV:
                     try
                     {
-                        sb.Append(SpirVShaderConverter.Convert(m_ProgramCode));
+                        sb.Append(SpirVShaderConverter.Convert(ProgramCode));
                     }
                     catch (Exception e)
                     {
@@ -1070,10 +1066,10 @@ public class ShaderSubProgram
                 case ShaderGpuProgramType.ConsoleHS:
                 case ShaderGpuProgramType.ConsoleDS:
                 case ShaderGpuProgramType.ConsoleGS:
-                    sb.Append(Encoding.UTF8.GetString(m_ProgramCode));
+                    sb.Append(Encoding.UTF8.GetString(ProgramCode));
                     break;
                 default:
-                    sb.Append($"//shader disassembly not supported on {m_ProgramType}");
+                    sb.Append($"//shader disassembly not supported on {ProgramType}");
                     break;
             }
         }

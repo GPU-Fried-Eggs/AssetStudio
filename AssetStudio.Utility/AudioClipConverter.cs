@@ -9,39 +9,36 @@ public class AudioClipConverter
 {
     private AudioClip m_AudioClip;
 
-    public AudioClipConverter(AudioClip audioClip)
-    {
-        m_AudioClip = audioClip;
-    }
+    public AudioClipConverter(AudioClip audioClip) => m_AudioClip = audioClip;
 
     public byte[] ConvertToWav()
     {
-        var m_AudioData = m_AudioClip.m_AudioData.GetData();
-        if (m_AudioData == null || m_AudioData.Length == 0)
+        var audioData = m_AudioClip.m_AudioData.GetData();
+        if (audioData == null || audioData.Length == 0)
             return null;
-        var exinfo = new CREATESOUNDEXINFO();
+        var info = new CREATESOUNDEXINFO();
         var result = Factory.System_Create(out var system);
         if (result != RESULT.OK)
             return null;
         result = system.init(1, INITFLAGS.NORMAL, IntPtr.Zero);
         if (result != RESULT.OK)
             return null;
-        exinfo.cbsize = Marshal.SizeOf(exinfo);
-        exinfo.length = (uint)m_AudioClip.m_Size;
-        result = system.createSound(m_AudioData, MODE.OPENMEMORY, ref exinfo, out var sound);
+        info.cbsize = Marshal.SizeOf(info);
+        info.length = (uint)m_AudioClip.m_Size;
+        result = system.createSound(audioData, MODE.OPENMEMORY, ref info, out var sound);
         if (result != RESULT.OK)
             return null;
-        result = sound.getNumSubSounds(out var numsubsounds);
+        result = sound.getNumSubSounds(out var numSubSounds);
         if (result != RESULT.OK)
             return null;
         byte[] buff;
-        if (numsubsounds > 0)
+        if (numSubSounds > 0)
         {
-            result = sound.getSubSound(0, out var subsound);
+            result = sound.getSubSound(0, out var subSound);
             if (result != RESULT.OK)
                 return null;
-            buff = SoundToWav(subsound);
-            subsound.release();
+            buff = SoundToWav(subSound);
+            subSound.release();
         }
         else
         {
@@ -54,7 +51,7 @@ public class AudioClipConverter
 
     public byte[] SoundToWav(Sound sound)
     {
-        var result = sound.getFormat(out _, out _, out int channels, out int bits);
+        var result = sound.getFormat(out _, out _, out var channels, out var bits);
         if (result != RESULT.OK)
             return null;
         result = sound.getDefaults(out var frequency, out _);

@@ -45,9 +45,9 @@ public static class ImageExtensions
 
     public static byte[] ConvertToBytes<TPixel>(this Image<TPixel> image) where TPixel : unmanaged, IPixel<TPixel>
     {
-        if (image.TryGetSinglePixelSpan(out var pixelSpan))
+        if (image.DangerousTryGetSinglePixelMemory(out var pixelMemory))
         {
-            return MemoryMarshal.AsBytes(pixelSpan).ToArray();
+            return MemoryMarshal.AsBytes(pixelMemory.Span).ToArray();
         }
         return null;
     }

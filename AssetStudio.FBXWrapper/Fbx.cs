@@ -5,11 +5,7 @@ namespace AssetStudio.FBXWrapper;
 
 public static partial class Fbx
 {
-
-    static Fbx()
-    {
-        DllLoader.PreloadDll(FbxDll.DllName);
-    }
+    static Fbx() => DllLoader.PreloadDll(FbxDll.DllName);
 
     public static Vector3 QuaternionToEuler(Quaternion q)
     {
@@ -25,17 +21,15 @@ public static partial class Fbx
 
     public static class Exporter
     {
-
         public static void Export(string path, IImported imported, bool eulerFilter, float filterPrecision,
             bool allNodes, bool skins, bool animation, bool blendShape, bool castToBone, float boneSize, bool exportAllUvsAsDiffuseMaps, float scaleFactor, int versionIndex, bool isAscii)
         {
             var file = new FileInfo(path);
             var dir = file.Directory;
 
-            if (!dir.Exists)
-            {
-                dir.Create();
-            }
+            if (dir == null) throw new FileNotFoundException("Not able to get file directory");
+
+            if (!dir.Exists) dir.Create();
 
             var currentDir = Directory.GetCurrentDirectory();
             Directory.SetCurrentDirectory(dir.FullName);
@@ -50,7 +44,5 @@ public static partial class Fbx
 
             Directory.SetCurrentDirectory(currentDir);
         }
-
     }
-
 }
