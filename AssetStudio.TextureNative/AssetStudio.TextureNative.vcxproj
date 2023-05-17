@@ -18,44 +18,6 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="astc.h" />
-    <ClInclude Include="atc.h" />
-    <ClInclude Include="bcn.h" />
-    <ClInclude Include="bool32_t.h" />
-    <ClInclude Include="color.h" />
-    <ClInclude Include="crunch.h" />
-    <ClInclude Include="crunch\crnlib.h" />
-    <ClInclude Include="crunch\crn_decomp.h" />
-    <ClInclude Include="dllexport.h" />
-    <ClInclude Include="endianness.h" />
-    <ClInclude Include="etc.h" />
-    <ClInclude Include="fp16.h" />
-    <ClInclude Include="fp16\bitcasts.h" />
-    <ClInclude Include="fp16\fp16.h" />
-    <ClInclude Include="pvrtc.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="unitycrunch.h" />
-    <ClInclude Include="unitycrunch\crnlib.h" />
-    <ClInclude Include="unitycrunch\crn_decomp.h" />
-    <ClInclude Include="unitycrunch\crn_defs.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="astc.cpp" />
-    <ClCompile Include="atc.cpp" />
-    <ClCompile Include="bcn.cpp" />
-    <ClCompile Include="crunch.cpp" />
-    <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="etc.cpp" />
-    <ClCompile Include="pvrtc.cpp" />
-    <ClCompile Include="unitycrunch.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="cpp.hint" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Texture2DDecoderNative.rc" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -198,6 +160,44 @@
       <EnableUAC>false</EnableUAC>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="astc.h" />
+    <ClInclude Include="atc.h" />
+    <ClInclude Include="bcn.h" />
+    <ClInclude Include="bool32_t.h" />
+    <ClInclude Include="color.h" />
+    <ClInclude Include="crunch.h" />
+    <ClInclude Include="crunch\crnlib.h" />
+    <ClInclude Include="crunch\crn_decomp.h" />
+    <ClInclude Include="dllexport.h" />
+    <ClInclude Include="endianness.h" />
+    <ClInclude Include="etc.h" />
+    <ClInclude Include="fp16.h" />
+    <ClInclude Include="fp16\bitcasts.h" />
+    <ClInclude Include="fp16\fp16.h" />
+    <ClInclude Include="pvrtc.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="unitycrunch.h" />
+    <ClInclude Include="unitycrunch\crnlib.h" />
+    <ClInclude Include="unitycrunch\crn_decomp.h" />
+    <ClInclude Include="unitycrunch\crn_defs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="astc.cpp" />
+    <ClCompile Include="atc.cpp" />
+    <ClCompile Include="bcn.cpp" />
+    <ClCompile Include="crunch.cpp" />
+    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="etc.cpp" />
+    <ClCompile Include="pvrtc.cpp" />
+    <ClCompile Include="unitycrunch.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Texture2DDecoderNative.rc" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

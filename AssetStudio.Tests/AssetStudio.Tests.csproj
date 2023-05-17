@@ -23,7 +23,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\AssetStudio.LzhamWrapper\AssetStudio.LzhamWrapper.csproj" />
+        <ProjectReference Include="..\AssetStudio.LzhamWrapper\AssetStudio.LzhamWrapper.csproj" />
+        <ProjectReference Include="..\AssetStudio.Utility\AssetStudio.Utility.csproj" />
     </ItemGroup>
 
     <Target Name="CopyExtraFiles" AfterTargets="AfterBuild">

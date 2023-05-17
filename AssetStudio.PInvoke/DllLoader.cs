@@ -13,7 +13,7 @@ public static class DllLoader
     private const int RTLD_NOW = 0x2;
     private const int RTLD_GLOBAL = 0x100;
 
-    public static void PreloadDll(string dllName, bool useAssemblyPath = false)
+    public static void PreloadDll(string dllName, bool useAssemblyPath = true)
     {
         var dllDir = GetDirectedDllDirectory(useAssemblyPath);
 
